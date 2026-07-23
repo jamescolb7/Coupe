@@ -1,0 +1,146 @@
+dependencies:
+  a2dp_sink_common_utils:
+    dependencies: []
+    source:
+      path: ../../../../../esp/v6.0.2/esp-idf/examples/bluetooth/bluedroid/classic_bt/common/a2dp_utils/a2dp_sink_common_utils
+      type: local
+    version: '*'
+  a2dp_sink_ext_codec_utils:
+    dependencies: []
+    source:
+      path: ../../../../../esp/v6.0.2/esp-idf/examples/bluetooth/bluedroid/classic_bt/common/a2dp_utils/a2dp_sink_ext_codec_utils
+      type: local
+    version: '*'
+  a2dp_sink_int_codec_utils:
+    dependencies: []
+    source:
+      path: ../../../../../esp/v6.0.2/esp-idf/examples/bluetooth/bluedroid/classic_bt/common/a2dp_utils/a2dp_sink_int_codec_utils
+      type: local
+    version: '*'
+  atanisoft/esp_lcd_touch_xpt2046:
+    component_hash: 7e6381b67b6e487379118368b8e91624dc87036ef5734818de1db9eb35697998
+    dependencies:
+    - name: espressif/esp_lcd_touch
+      registry_url: https://components.espressif.com
+      require: private
+      version: '>=1.0.4'
+    - name: idf
+      require: private
+      version: '>=4.4'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.0.6
+  avrcp_common_utils:
+    dependencies: []
+    source:
+      path: ../../../../../esp/v6.0.2/esp-idf/examples/bluetooth/bluedroid/classic_bt/common/avrcp_utils/avrcp_common_utils
+      type: local
+    version: '*'
+  avrcp_metadata_utils:
+    dependencies:
+    - name: avrcp_common_utils
+      path: ${IDF_PATH}/examples/bluetooth/bluedroid/classic_bt/common/avrcp_utils/avrcp_common_utils
+    source:
+      path: ../../../../../esp/v6.0.2/esp-idf/examples/bluetooth/bluedroid/classic_bt/common/avrcp_utils/avrcp_metadata_utils
+      type: local
+    version: '*'
+  bredr_app_common_utils:
+    dependencies: []
+    source:
+      path: ../../../../../esp/v6.0.2/esp-idf/examples/bluetooth/bluedroid/classic_bt/common/bredr_app_common_utils
+      type: local
+    version: '*'
+  bt_app_core_utils:
+    dependencies: []
+    source:
+      path: ../../../../../esp/v6.0.2/esp-idf/examples/bluetooth/bluedroid/classic_bt/common/bt_app_core_utils
+      type: local
+    version: '*'
+  espressif/cmake_utilities:
+    component_hash: 351350613ceafba240b761b4ea991e0f231ac7a9f59a9ee901f751bddc0bb18f
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=4.1'
+    source:
+      registry_url: https://components.espressif.com
+      type: service
+    version: 0.5.3
+  espressif/esp_jpeg:
+    component_hash: defb83669293cbf86d0fa86b475ba5517aceed04ed70db435388c151ab37b5d7
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.0'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.3.1
+  espressif/esp_lcd_ili9341:
+    component_hash: 0baab584e0e490511d6bdbae6aa045130424d732ecdaad6cd1d3bd3c0abe2c30
+    dependencies:
+    - name: espressif/cmake_utilities
+      registry_url: https://components.espressif.com
+      require: private
+      version: 0.*
+    - name: idf
+      require: private
+      version: '>=4.4'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 2.0.2
+  espressif/esp_lcd_touch:
+    component_hash: 3f85a7d95af876f1a6ecca8eb90a81614890d0f03a038390804e5a77e2caf862
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=4.4.2'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.2.1
+  espressif/esp_lvgl_port:
+    component_hash: fb6c1fdfe70d4ca39a035d63ca394a35f17ec84ce16ff98ecb13a54155d75da4
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.2'
+    - name: lvgl/lvgl
+      registry_url: https://components.espressif.com
+      require: public
+      version: '>=8,<10'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 2.8.0~1
+  idf:
+    source:
+      type: idf
+    version: 6.0.2
+  lvgl/lvgl:
+    component_hash: 17e68bfd21f0edf4c3ee838e2273da840bf3930e5dbc3bfa6c1190c3aed41f9f
+    dependencies: []
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 9.4.0
+direct_dependencies:
+- a2dp_sink_common_utils
+- a2dp_sink_ext_codec_utils
+- a2dp_sink_int_codec_utils
+- atanisoft/esp_lcd_touch_xpt2046
+- avrcp_common_utils
+- avrcp_metadata_utils
+- bredr_app_common_utils
+- bt_app_core_utils
+- espressif/esp_jpeg
+- espressif/esp_lcd_ili9341
+- espressif/esp_lcd_touch
+- espressif/esp_lvgl_port
+- idf
+- lvgl/lvgl
+manifest_hash: bad41fbb7ee14da768f1d179a6e7965f02b8fb1bb9a3a345b75b11e888d02b50
+target: esp32
+version: 3.0.0

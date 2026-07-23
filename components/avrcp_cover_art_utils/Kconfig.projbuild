@@ -1,0 +1,11 @@
+menu "AVRCP Cover Art Example Configuration"
+    config EXAMPLE_LVGL_BUF_LINES
+        int "LVGL flush buffer height (lines)"
+        default 20
+        help
+            Number of horizontal lines held in each of the two LVGL flush
+            buffers. Plain ESP32 cannot DMA out of PSRAM, so these buffers
+            live in internal DRAM -- keep this modest. E.g. 20 lines * 320px
+            * 2 bytes ~= 12.5KB per buffer, 25KB total for double buffering.
+
+endmenu
