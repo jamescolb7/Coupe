@@ -4,6 +4,7 @@
 // Project name: SquareLine_Project
 
 #include "../ui.h"
+#include "../animations.h"
 
 lv_obj_t * ui_Screen1 = NULL;
 lv_obj_t * ui_TabView1 = NULL;
@@ -23,8 +24,10 @@ lv_obj_t * ui_Back2 = NULL;
 lv_obj_t * ui_Label6 = NULL;
 lv_obj_t * ui_progress_bar = NULL;
 lv_obj_t * ui_subtitle_label = NULL;
-lv_obj_t * ui_Label8 = NULL;
+lv_obj_t * ui_connected_label = NULL;
 lv_obj_t * ui_Settings = NULL;
+lv_obj_t * ui_Label9 = NULL;
+lv_obj_t * ui_Slider1 = NULL;
 lv_obj_t * ui_Keyboard = NULL;
 // event funtions
 void ui_event_TextArea1(lv_event_t * e)
@@ -39,9 +42,18 @@ void ui_event_TextArea1(lv_event_t * e)
     }
 }
 
+void ui_event_brightness(lv_event_t * e)
+{
+    lv_obj_t * slider = lv_event_get_target(e);
+
+    int value = lv_slider_get_value(slider);
+
+    lvgl_set_backlight_brightness(value);
+}
+
 // build funtions
 
-void ui_Screen1_screen_init(void)
+void ui_main_screen_init(void)
 {
     ui_Screen1 = lv_obj_create(NULL);
     lv_obj_clear_flag(ui_Screen1, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
@@ -54,17 +66,35 @@ void ui_Screen1_screen_init(void)
     lv_obj_set_width(ui_TabView1, 320);
     lv_obj_set_height(ui_TabView1, 240);
     lv_obj_clear_flag(ui_TabView1, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
-    lv_obj_set_style_bg_color(ui_TabView1, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_TabView1, lv_color_hex(0x101010), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_TabView1, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     lv_obj_set_style_text_color(lv_tabview_get_tab_btns(ui_TabView1), lv_color_hex(0xB4B4B4),
                                 LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(lv_tabview_get_tab_btns(ui_TabView1), 255,  LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(lv_tabview_get_tab_btns(ui_TabView1), &ui_font_Icons,  LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    lv_obj_set_style_bg_color(lv_tabview_get_tab_btns(ui_TabView1), lv_color_hex(0x000000),
+                              LV_PART_ITEMS | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(lv_tabview_get_tab_btns(ui_TabView1), 255,  LV_PART_ITEMS | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_side(lv_tabview_get_tab_btns(ui_TabView1), LV_BORDER_SIDE_RIGHT,
+                                 LV_PART_ITEMS | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(lv_tabview_get_tab_btns(ui_TabView1), lv_color_hex(0xFFFFFF),
+                                LV_PART_ITEMS | LV_STATE_CHECKED);
+    lv_obj_set_style_text_opa(lv_tabview_get_tab_btns(ui_TabView1), 255,  LV_PART_ITEMS | LV_STATE_CHECKED);
+    lv_obj_set_style_bg_color(lv_tabview_get_tab_btns(ui_TabView1), lv_color_hex(0x000000),
+                              LV_PART_ITEMS | LV_STATE_CHECKED);
+    lv_obj_set_style_bg_opa(lv_tabview_get_tab_btns(ui_TabView1), 255,  LV_PART_ITEMS | LV_STATE_CHECKED);
+    lv_obj_set_style_border_color(lv_tabview_get_tab_btns(ui_TabView1), lv_color_hex(0xFFFFFF),
+                                  LV_PART_ITEMS | LV_STATE_CHECKED);
+    lv_obj_set_style_border_opa(lv_tabview_get_tab_btns(ui_TabView1), 255,  LV_PART_ITEMS | LV_STATE_CHECKED);
+    lv_obj_set_style_border_width(lv_tabview_get_tab_btns(ui_TabView1), 2,  LV_PART_ITEMS | LV_STATE_CHECKED);
+    lv_obj_set_style_border_side(lv_tabview_get_tab_btns(ui_TabView1), LV_BORDER_SIDE_LEFT,
+                                 LV_PART_ITEMS | LV_STATE_CHECKED);
 		lv_obj_clear_flag(lv_tabview_get_content(ui_TabView1), LV_OBJ_FLAG_SCROLLABLE);
 
 		ui_Now_Playing = lv_tabview_add_tab(ui_TabView1, "");
-    ui_Home = lv_tabview_add_tab(ui_TabView1, "");
+    ui_Home = lv_tabview_add_tab(ui_TabView1, "");
 
     ui_Label2 = lv_label_create(ui_Home);
     lv_obj_set_width(ui_Label2, LV_SIZE_CONTENT);   /// 1
@@ -109,7 +139,6 @@ void ui_Screen1_screen_init(void)
     lv_obj_clear_flag(ui_Now_Playing, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
 
     ui_album_image = lv_img_create(ui_Now_Playing);
-    // lv_img_set_src(ui_Image2, &ui_img_ab67616d00001e02ea46ceca00d552337e5b8ac2_png);
     lv_obj_set_width(ui_album_image, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_album_image, LV_SIZE_CONTENT);    /// 1
     lv_obj_set_align(ui_album_image, LV_ALIGN_CENTER);
@@ -118,7 +147,7 @@ void ui_Screen1_screen_init(void)
                       LV_OBJ_FLAG_SCROLL_CHAIN);     /// Flags
     lv_obj_set_style_opa(ui_album_image, 75, LV_PART_MAIN | LV_STATE_DEFAULT);
 		lv_img_set_zoom(ui_album_image, 345);
-
+    
     ui_title_label = lv_label_create(ui_Now_Playing);
     lv_obj_set_width(ui_title_label, 230);
     lv_obj_set_height(ui_title_label, LV_SIZE_CONTENT);    /// 1
@@ -223,7 +252,6 @@ void ui_Screen1_screen_init(void)
     lv_obj_set_style_bg_color(ui_progress_bar, lv_color_hex(0xFFFFFF), LV_PART_INDICATOR | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_progress_bar, 150, LV_PART_INDICATOR | LV_STATE_DEFAULT);
 
-		//Ava Max • Heaven & Hell
     ui_subtitle_label = lv_label_create(ui_Now_Playing);
     lv_obj_set_width(ui_subtitle_label, 229);
     lv_obj_set_height(ui_subtitle_label, LV_SIZE_CONTENT);    /// 1
@@ -236,16 +264,43 @@ void ui_Screen1_screen_init(void)
     lv_obj_set_style_text_opa(ui_subtitle_label, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_subtitle_label, &lv_font_montserrat_12, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_Label8 = lv_label_create(ui_Now_Playing);
-    lv_obj_set_width(ui_Label8, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_Label8, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_align(ui_Label8, LV_ALIGN_TOP_RIGHT);
-    lv_label_set_text(ui_Label8, "");
-    lv_obj_set_style_text_color(ui_Label8, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(ui_Label8, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_Label8, &ui_font_Icons, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    lv_obj_add_style(ui_title_label, &anim_text_scroll_sync, LV_PART_MAIN);
+    lv_obj_add_style(ui_subtitle_label, &anim_text_scroll_sync, LV_PART_MAIN);
+
+    ui_connected_label = lv_label_create(ui_Now_Playing);
+    lv_obj_set_width(ui_connected_label, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_connected_label, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_align(ui_connected_label, LV_ALIGN_TOP_RIGHT);
+    lv_label_set_text(ui_connected_label, "");
+    lv_obj_set_style_text_color(ui_connected_label, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_connected_label, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_connected_label, &ui_font_Icons, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Settings = lv_tabview_add_tab(ui_TabView1, "");
+
+    ui_Label9 = lv_label_create(ui_Settings);
+    lv_obj_set_width(ui_Label9, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_Label9, LV_SIZE_CONTENT);    /// 1
+    lv_label_set_text(ui_Label9, "Brightness");
+    lv_obj_set_style_text_color(ui_Label9, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_Label9, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_Slider1 = lv_slider_create(ui_Settings);
+    lv_slider_set_value(ui_Slider1, 50, LV_ANIM_OFF);
+    if(lv_slider_get_mode(ui_Slider1) == LV_SLIDER_MODE_RANGE) lv_slider_set_left_value(ui_Slider1, 0, LV_ANIM_OFF);
+    lv_obj_set_width(ui_Slider1, 242);
+    lv_obj_set_height(ui_Slider1, 10);
+    lv_obj_set_x(ui_Slider1, 0);
+    lv_obj_set_y(ui_Slider1, 24);
+    lv_obj_set_style_bg_color(ui_Slider1, lv_color_hex(0x353535), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_Slider1, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    lv_obj_set_style_bg_color(ui_Slider1, lv_color_hex(0xD9D9D9), LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_Slider1, 255, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+
+    lv_obj_set_style_bg_color(ui_Slider1, lv_color_hex(0xFFFFFF), LV_PART_KNOB | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_Slider1, 255, LV_PART_KNOB | LV_STATE_DEFAULT);
 
     /* LVGL 9's tabview tab bar holds individual lv_button children (not a
      * button-matrix like LVGL 8), so the per-item bg/border styling has to be
@@ -253,13 +308,13 @@ void ui_Screen1_screen_init(void)
      * has no effect on a plain container and was silently ignored. */
     for(uint32_t tab_btn_i = 0; tab_btn_i < lv_tabview_get_tab_count(ui_TabView1); tab_btn_i++) {
         lv_obj_t * tab_btn = lv_tabview_get_tab_button(ui_TabView1, tab_btn_i);
-        lv_obj_set_style_bg_color(tab_btn, lv_color_hex(0x0f0f0f), LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_color(tab_btn, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
         lv_obj_set_style_bg_opa(tab_btn, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
         lv_obj_set_style_border_side(tab_btn, LV_BORDER_SIDE_RIGHT, LV_PART_MAIN | LV_STATE_DEFAULT);
 
         lv_obj_set_style_text_color(tab_btn, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_CHECKED);
         lv_obj_set_style_text_opa(tab_btn, 255, LV_PART_MAIN | LV_STATE_CHECKED);
-        lv_obj_set_style_bg_color(tab_btn, lv_color_hex(0x161616), LV_PART_MAIN | LV_STATE_CHECKED);
+        lv_obj_set_style_bg_color(tab_btn, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_CHECKED);
         lv_obj_set_style_bg_opa(tab_btn, 255, LV_PART_MAIN | LV_STATE_CHECKED);
         lv_obj_set_style_border_color(tab_btn, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_CHECKED);
         lv_obj_set_style_border_opa(tab_btn, 255, LV_PART_MAIN | LV_STATE_CHECKED);
@@ -274,11 +329,12 @@ void ui_Screen1_screen_init(void)
     lv_obj_add_flag(ui_Keyboard, LV_OBJ_FLAG_HIDDEN);     /// Flags
 
     lv_obj_add_event_cb(ui_TextArea1, ui_event_TextArea1, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_Slider1, ui_event_brightness, LV_EVENT_ALL, NULL);
     lv_keyboard_set_textarea(ui_Keyboard, ui_TextArea1);
 
 }
 
-void ui_Screen1_screen_destroy(void)
+void ui_main_screen_destroy(void)
 {
     if(ui_Screen1) lv_obj_del(ui_Screen1);
 
@@ -301,8 +357,10 @@ void ui_Screen1_screen_destroy(void)
     ui_Label6 = NULL;
     ui_progress_bar = NULL;
     ui_subtitle_label = NULL;
-    ui_Label8 = NULL;
+    ui_connected_label = NULL;
     ui_Settings = NULL;
+    ui_Label9 = NULL;
+    ui_Slider1 = NULL;
     ui_Keyboard = NULL;
 
 }

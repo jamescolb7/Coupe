@@ -36,6 +36,8 @@
 #include "esp_lvgl_port.h"
 
 #include "ui/screens/main.h"
+#include "ui/animations.h"
+#include "state/player.h"
 
 /* device name */
 static const char local_device_name[] = "Coupé";
@@ -79,43 +81,9 @@ static volatile uint8_t s_avrc_volume = 50;
 static uint8_t *s_vol_scratch_buf = NULL;
 static uint32_t s_vol_scratch_cap = 0;
 
-static char s_subtitle_artist[256] = {0};
-static char s_subtitle_album[256] = {0};
-static bool s_subtitle_artist_valid = false;
-static bool s_subtitle_album_valid = false;
-
 /********************************
  * STATIC FUNCTION DEFINITIONS
  *******************************/
-
-static void bt_app_avrc_update_subtitle_label(void)
-{
-    if (!lvgl_port_lock(0)) {
-        return;
-    }
-
-    if (s_subtitle_artist_valid && s_subtitle_album_valid) {
-        lv_label_set_text_fmt(ui_subtitle_label, "%s • %s", s_subtitle_artist, s_subtitle_album);
-    } 
-    // else if (s_subtitle_artist_valid) {
-    //     lv_label_set_text(ui_subtitle_label, s_subtitle_artist);
-    // } else if (s_subtitle_album_valid) {
-    //     lv_label_set_text(ui_subtitle_label, s_subtitle_album);
-    // } else {
-    //     lv_label_set_text(ui_subtitle_label, "");
-    // }
-
-    lvgl_port_unlock();
-}
-
-static void bt_app_avrc_clear_subtitle_metadata(void)
-{
-    s_subtitle_artist[0] = '\0';
-    s_subtitle_album[0] = '\0';
-    s_subtitle_artist_valid = false;
-    s_subtitle_album_valid = false;
-    bt_app_avrc_update_subtitle_label();
-}
 
 static void bt_app_avrc_request_play_status(void)
 {
@@ -151,7 +119,7 @@ static void bt_app_avrc_ct_evt_hdl(uint16_t event, void *param)
     }
     case ESP_AVRC_CT_CHANGE_NOTIFY_EVT: {
         if (rc->change_ntf.event_id == ESP_AVRC_RN_TRACK_CHANGE) {
-            bt_app_avrc_clear_subtitle_metadata();
+            player_clear_metadata();
         }
         bt_avrc_md_ct_evt_hdl(event, param);
         bt_avrc_ca_ct_evt_hdl(event, param);
@@ -193,20 +161,22 @@ static void bt_app_avrc_ct_evt_hdl(uint16_t event, void *param)
     case ESP_AVRC_CT_METADATA_RSP_EVT: {
         if (rc->meta_rsp.attr_text) {
             if (rc->meta_rsp.attr_id == ESP_AVRC_MD_ATTR_TITLE) {
-                if (lvgl_port_lock(0)) {
-                    lv_label_set_text_fmt(ui_title_label, "%.*s", (int)rc->meta_rsp.attr_length, (const char *)rc->meta_rsp.attr_text);
-                    lvgl_port_unlock();
-                }
+                snprintf(playing_title, sizeof(playing_title), "%.*s", (int)rc->meta_rsp.attr_length, (const char *)rc->meta_rsp.attr_text);
+                playing_title_valid = true;
+                player_update_metadata();
+
                 ESP_LOGI(BT_RC_CT_TAG, "AVRC metadata rsp: song title: %.*s", (int)rc->meta_rsp.attr_length, rc->meta_rsp.attr_text);
             } else if (rc->meta_rsp.attr_id == ESP_AVRC_MD_ATTR_ARTIST) {
-                snprintf(s_subtitle_artist, sizeof(s_subtitle_artist), "%.*s", (int)rc->meta_rsp.attr_length, (const char *)rc->meta_rsp.attr_text);
-                s_subtitle_artist_valid = true;
-                bt_app_avrc_update_subtitle_label();
+                snprintf(playing_artist, sizeof(playing_artist), "%.*s", (int)rc->meta_rsp.attr_length, (const char *)rc->meta_rsp.attr_text);
+                playing_artist_valid = true;
+                player_update_metadata();
+
                 ESP_LOGI(BT_RC_CT_TAG, "AVRC metadata rsp: artist: %.*s", (int)rc->meta_rsp.attr_length, rc->meta_rsp.attr_text);
             } else if (rc->meta_rsp.attr_id == ESP_AVRC_MD_ATTR_ALBUM) {
-                snprintf(s_subtitle_album, sizeof(s_subtitle_album), "%.*s", (int)rc->meta_rsp.attr_length, (const char *)rc->meta_rsp.attr_text);
-                s_subtitle_album_valid = true;
-                bt_app_avrc_update_subtitle_label();
+                snprintf(playing_album, sizeof(playing_album), "%.*s", (int)rc->meta_rsp.attr_length, (const char *)rc->meta_rsp.attr_text);
+                playing_album_valid = true;
+                player_update_metadata();
+
                 ESP_LOGI(BT_RC_CT_TAG, "AVRC metadata rsp: album: %.*s", (int)rc->meta_rsp.attr_length, rc->meta_rsp.attr_text);
             }
         }
@@ -409,6 +379,40 @@ static void bt_app_dev_cb(esp_bt_dev_cb_event_t event, esp_bt_dev_cb_param_t *pa
 
 static void bt_app_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)
 {
+    switch (event) {
+    /* ESP_BT_GAP_AUTH_CMPL_EVT's device_name is only populated when a *new*
+     * link key is generated (bta_dm_new_link_key_cback), i.e. first-time
+     * pairing -- it stays empty on every later reconnect of an already-bonded
+     * phone, since no new link key is negotiated then. Actively requesting
+     * the name via esp_bt_gap_read_remote_name() instead works on every
+     * connection, paired or not. */
+    case ESP_BT_GAP_ACL_CONN_CMPL_STAT_EVT:
+        if (param->acl_conn_cmpl_stat.stat == ESP_BT_STATUS_SUCCESS) {
+            bt_connected = true;
+            player_connection_state();
+            esp_bt_gap_read_remote_name(param->acl_conn_cmpl_stat.bda);
+        }
+        break;
+    case ESP_BT_GAP_READ_REMOTE_NAME_EVT:
+        if (param->read_rmt_name.stat == ESP_BT_STATUS_SUCCESS) {
+            snprintf(connected_device_name, sizeof(connected_device_name), "%.*s", (int)(sizeof(connected_device_name) - 1), (const char *)param->read_rmt_name.rmt_name);
+            connected_device_name_valid = true;
+            bt_connected = true;
+            player_connection_state();
+            player_update_metadata();
+        }
+        break;
+    case ESP_BT_GAP_ACL_DISCONN_CMPL_STAT_EVT:
+        connected_device_name[0] = '\0';
+        connected_device_name_valid = false;
+        bt_connected = false;
+        player_connection_state();
+        player_update_metadata();
+        break;
+    default:
+        break;
+    }
+
     bredr_app_gap_evt_def_hdl(event, param);
 }
 

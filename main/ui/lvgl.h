@@ -32,4 +32,7 @@ extern avrc_cover_art_ui_cb_t s_ui_cb;
 
 void lvgl_ui_init(void);
 
+/* Set backlight brightness, 0 (off) - 100 (full). */
+void lvgl_set_backlight_brightness(uint8_t percent);
+
 #endif

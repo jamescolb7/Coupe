@@ -7,6 +7,7 @@
 #include "freertos/semphr.h"
 #include "driver/spi_master.h"
 #include "driver/gpio.h"
+#include "driver/ledc.h"
 #include "esp_log.h"
 #include "esp_check.h"
 #include "esp_lcd_panel_io.h"
@@ -22,17 +23,17 @@
 #include "ui/lvgl.h"
 #include "ui/screens/loader.h"
 #include "ui/screens/main.h"
+#include "ui/animations.h"
 
 #define LCD_HOST       SPI2_HOST
-#define LCD_PIXEL_CLOCK_HZ (20 * 1000 * 1000)
-#define LCD_BK_LIGHT_ON_LEVEL  0
-#define LCD_BK_LIGHT_OFF_LEVEL !LCD_BK_LIGHT_ON_LEVEL
+#define LCD_PIXEL_CLOCK_HZ (60 * 1000 * 1000)
+#define LCD_BK_LIGHT_ON_LEVEL  1
 #define PIN_NUM_DATA0          23  /*!< for 1-line SPI, this also referred as MOSI */
 #define PIN_NUM_PCLK           18
 #define PIN_NUM_CS             15
 #define PIN_NUM_DC             2
 #define PIN_NUM_RST            4
-#define PIN_NUM_BK_LIGHT       5
+#define PIN_NUM_BK_LIGHT       22
 #define PIN_NUM_MISO           19   /*!< shared SPI bus MISO, needed for touch */
 #define PIN_NUM_TOUCH_CS       32
 #define PIN_NUM_TOUCH_IRQ      33
@@ -50,6 +51,16 @@
 
 #define LVGL_BUF_LINES 40
 
+/* Backlight is driven via LEDC PWM (instead of a plain GPIO on/off) so
+ * brightness can be dimmed. 5kHz is a typical backlight PWM frequency --
+ * high enough to avoid visible flicker, low enough that 10-bit duty
+ * resolution is achievable from the APB clock. */
+#define LCD_BK_LIGHT_LEDC_TIMER    LEDC_TIMER_0
+#define LCD_BK_LIGHT_LEDC_MODE     LEDC_LOW_SPEED_MODE
+#define LCD_BK_LIGHT_LEDC_CHANNEL  LEDC_CHANNEL_0
+#define LCD_BK_LIGHT_LEDC_DUTY_RES LEDC_TIMER_10_BIT
+#define LCD_BK_LIGHT_LEDC_FREQ_HZ  5000
+
 /* Upper bound on the decoded cover-art thumbnail dimensions. AVRCP BIP "linked
  * thumbnail" images are conventionally small (commonly <=200x200); this cap
  * just bounds the worst-case decode buffer size and is independent of the
@@ -59,17 +70,45 @@
 /* persistent UI control block */
 avrc_cover_art_ui_cb_t s_ui_cb;
 
+/* Set backlight brightness, 0 (off) - 100 (full). */
+void lvgl_set_backlight_brightness(uint8_t percent)
+{
+	if (percent > 100) percent = 100;
+	if (percent == 0) percent = 1;
+
+	uint32_t max_duty = (1u << LCD_BK_LIGHT_LEDC_DUTY_RES) - 1;
+	uint32_t on_duty = (max_duty * percent) / 100;
+	/* if the backlight is active-low, a higher "on-ness" means a lower duty */
+	uint32_t duty = LCD_BK_LIGHT_ON_LEVEL ? on_duty : (max_duty - on_duty);
+
+	ESP_ERROR_CHECK(ledc_set_duty(LCD_BK_LIGHT_LEDC_MODE, LCD_BK_LIGHT_LEDC_CHANNEL, duty));
+	ESP_ERROR_CHECK(ledc_update_duty(LCD_BK_LIGHT_LEDC_MODE, LCD_BK_LIGHT_LEDC_CHANNEL));
+}
+
 void lvgl_ui_init(void)
 {
-	gpio_config_t bk_gpio_config = {
-			.mode = GPIO_MODE_OUTPUT,
-			.pin_bit_mask = 1ULL << PIN_NUM_BK_LIGHT};
-	/* Initialize the GPIO of backlight */
-	ESP_ERROR_CHECK(gpio_config(&bk_gpio_config));
+	const ledc_timer_config_t bk_ledc_timer = {
+			.speed_mode = LCD_BK_LIGHT_LEDC_MODE,
+			.duty_resolution = LCD_BK_LIGHT_LEDC_DUTY_RES,
+			.timer_num = LCD_BK_LIGHT_LEDC_TIMER,
+			.freq_hz = LCD_BK_LIGHT_LEDC_FREQ_HZ,
+			.clk_cfg = LEDC_AUTO_CLK,
+	};
+	ESP_ERROR_CHECK(ledc_timer_config(&bk_ledc_timer));
 
-	/* Turn off backlight to avoid unpredictable display on the LCD screen while initializing
-	 * the LCD panel driver. (Different LCD screens may need different levels) */
-	ESP_ERROR_CHECK(gpio_set_level(PIN_NUM_BK_LIGHT, LCD_BK_LIGHT_OFF_LEVEL));
+	const ledc_channel_config_t bk_ledc_channel = {
+			.gpio_num = PIN_NUM_BK_LIGHT,
+			.speed_mode = LCD_BK_LIGHT_LEDC_MODE,
+			.channel = LCD_BK_LIGHT_LEDC_CHANNEL,
+			.intr_type = LEDC_INTR_DISABLE,
+			.timer_sel = LCD_BK_LIGHT_LEDC_TIMER,
+			/* Turn off backlight to avoid unpredictable display on the LCD screen while
+			 * initializing the LCD panel driver. (Different LCD screens may need different levels) */
+			.duty = LCD_BK_LIGHT_ON_LEVEL ? 0 : (1u << LCD_BK_LIGHT_LEDC_DUTY_RES) - 1,
+			.hpoint = 0,
+	};
+	/* Initialize the LEDC PWM channel driving the backlight */
+	ESP_ERROR_CHECK(ledc_channel_config(&bk_ledc_channel));
 
 	spi_bus_config_t buscfg = {
 			.sclk_io_num = PIN_NUM_PCLK,
@@ -234,13 +273,13 @@ void lvgl_ui_init(void)
 		// s_ui_cb.img_obj = lv_image_create(lv_scr_act());
 		// lv_obj_add_flag(s_ui_cb.img_obj, LV_OBJ_FLAG_HIDDEN);
 
-		ui_Screen1_screen_init();
+		anim_text_scroll_init();
+		ui_main_screen_init();
 		create_task();
 		
 		lvgl_port_unlock();
 	}
 
-	/* Turn on backlight now that valid content is on screen
-	 * (Different LCD screens may need different levels) */
-	ESP_ERROR_CHECK(gpio_set_level(PIN_NUM_BK_LIGHT, LCD_BK_LIGHT_ON_LEVEL));
+	/* Turn on backlight now that valid content is on screen */
+	lvgl_set_backlight_brightness(50);
 }
