@@ -25,7 +25,7 @@ bool connected_device_name_valid = false;
 void player_update_metadata(void) {
 	if (!playing_title_valid || !playing_album_valid || !playing_artist_valid) return;
 
-	if (lvgl_port_lock(20)) {
+	if (lvgl_port_lock(0)) {
 		// player_cover_valid = false;
 
 		bool playing_title_empty = playing_title[0] == '\0';
@@ -65,7 +65,7 @@ void player_clear_metadata(void) {
 }
 
 void player_connection_state(void) {
-	if (lvgl_port_lock(20)) {
+	if (lvgl_port_lock(0)) {
 		lv_label_set_text_fmt(ui_connected_label, "%s", bt_connected ? "" : "");
 	}
 
