@@ -275,7 +275,7 @@ void lvgl_ui_init(void)
 
 		anim_text_scroll_init();
 		ui_main_screen_init();
-		create_task();
+		avrc_cover_art_decode_create_task();
 		
 		lvgl_port_unlock();
 	}

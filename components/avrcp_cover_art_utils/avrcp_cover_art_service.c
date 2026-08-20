@@ -36,8 +36,8 @@
 // Using SPI2 (VSPI) for both the LCD and the touch controller
 
 
-#define COVER_ART_MAX_DECODE_W        300
-#define COVER_ART_MAX_DECODE_H        300
+#define COVER_ART_MAX_DECODE_W        200
+#define COVER_ART_MAX_DECODE_H        200
 
 /**
  * @brief  Persistent, boot-lifetime UI state: display, touch, LVGL objects and
@@ -455,6 +455,6 @@ void avrc_cover_art_srv_ct_metadata_update(uint8_t *image_handle, int len)
     }
 }
 
-void create_task(void) {
+void avrc_cover_art_decode_create_task(void) {
     xTaskCreatePinnedToCore(cover_art_decode_task, "CoverArtDecode", 6144, NULL, 4, &s_ui_cb.decode_task_handle, 1);
 }

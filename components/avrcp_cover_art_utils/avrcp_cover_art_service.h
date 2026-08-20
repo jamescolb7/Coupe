@@ -69,6 +69,6 @@ void avrc_cover_art_srv_save_image_data(uint8_t *p_data, uint16_t data_len);
  */
 void avrc_cover_art_srv_ct_metadata_update(uint8_t *image_handle, int len);
 
-void create_task(void);
+void avrc_cover_art_decode_create_task(void);
 
 #endif /* __AVRCP_COVER_ART_SERVICE_H__ */
