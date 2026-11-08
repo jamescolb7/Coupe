@@ -494,6 +494,7 @@
       "pin_to_pin": "warning",
       "power_pin_not_driven": "error",
       "same_local_global_label": "warning",
+      "same_local_global_power": "warning",
       "similar_label_and_power": "warning",
       "similar_labels": "warning",
       "similar_power": "warning",
@@ -545,8 +546,8 @@
     "meta": {
       "version": 5
     },
-    "net_colors": null,
-    "netclass_assignments": null,
+    "net_colors": {},
+    "netclass_assignments": {},
     "netclass_patterns": []
   },
   "pcbnew": {
@@ -663,7 +664,7 @@
       "default_line_thickness": 6.0,
       "default_text_size": 50.0,
       "field_names": [],
-      "hop_over_size_choice": 0,
+      "hop_over_size_choice": 3,
       "intersheets_ref_own_page": false,
       "intersheets_ref_prefix": "",
       "intersheets_ref_short": false,
@@ -704,13 +705,25 @@
         "uuid": "b5656864-77da-4f70-a19f-6dcb0d84a2f5"
       }
     ],
-    "used_designators": "",
+    "used_designators": "#PWR3-10,#PWR12-35,#PWR40,#PWR42-43,C1-18,D1-4,J1-2,R1-9,U2-6,U8",
     "variants": []
   },
   "sheets": [
     [
       "b5656864-77da-4f70-a19f-6dcb0d84a2f5",
       "Root"
+    ],
+    [
+      "b7d7cd80-e11b-473d-95b1-dbf6912378f4",
+      "Audio"
+    ],
+    [
+      "91e00441-8e7f-4cad-aed9-753980d67a1b",
+      "Power"
+    ],
+    [
+      "a23f8f63-360f-424c-96f6-11ad25c45592",
+      "Display"
     ]
   ],
   "text_variables": {},
