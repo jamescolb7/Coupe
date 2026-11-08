@@ -28,44 +28,32 @@
 #define LCD_HOST       SPI2_HOST
 #define LCD_PIXEL_CLOCK_HZ (60 * 1000 * 1000)
 #define LCD_BK_LIGHT_ON_LEVEL  1
-#define PIN_NUM_DATA0          23  /*!< for 1-line SPI, this also referred as MOSI */
+#define PIN_NUM_DATA0          23
 #define PIN_NUM_PCLK           18
 #define PIN_NUM_CS             15
 #define PIN_NUM_DC             2
 #define PIN_NUM_RST            4
 #define PIN_NUM_BK_LIGHT       22
-#define PIN_NUM_MISO           19   /*!< shared SPI bus MISO, needed for touch */
+#define PIN_NUM_MISO           19
 #define PIN_NUM_TOUCH_CS       32
 #define PIN_NUM_TOUCH_IRQ      33
 
-// Logical UI resolution (landscape, after LVGL's software rotation)
 #define LCD_H_RES              320
 #define LCD_V_RES              240
-// The ILI9341's native physical orientation (portrait) -- LVGL rotates to the
-// logical landscape resolution above in software; see avrc_cover_art_srv_ui_init()
+
 #define LCD_PANEL_NATIVE_H_RES 240
 #define LCD_PANEL_NATIVE_V_RES 320
-// Bit number used to represent command and parameter
+
 #define LCD_CMD_BITS           8
 #define LCD_PARAM_BITS         8
 
 #define LVGL_BUF_LINES 40
 
-/* Backlight is driven via LEDC PWM (instead of a plain GPIO on/off) so
- * brightness can be dimmed. 5kHz is a typical backlight PWM frequency --
- * high enough to avoid visible flicker, low enough that 10-bit duty
- * resolution is achievable from the APB clock. */
 #define LCD_BK_LIGHT_LEDC_TIMER    LEDC_TIMER_0
 #define LCD_BK_LIGHT_LEDC_MODE     LEDC_LOW_SPEED_MODE
 #define LCD_BK_LIGHT_LEDC_CHANNEL  LEDC_CHANNEL_0
 #define LCD_BK_LIGHT_LEDC_DUTY_RES LEDC_TIMER_10_BIT
 #define LCD_BK_LIGHT_LEDC_FREQ_HZ  5000
-
-/* Upper bound on the decoded cover-art thumbnail dimensions. AVRCP BIP "linked
- * thumbnail" images are conventionally small (commonly <=200x200); this cap
- * just bounds the worst-case decode buffer size and is independent of the
- * panel resolution. LVGL scales the decoded image to fit the 320x240 screen
- * regardless of its native aspect ratio. */
 
 /* persistent UI control block */
 avrc_cover_art_ui_cb_t s_ui_cb;
@@ -146,31 +134,13 @@ void lvgl_ui_init(void)
 	/* Initialize LCD panel */
 	ESP_ERROR_CHECK(esp_lcd_panel_init(s_ui_cb.panel_handle));
 
-	/* Most ILI9341 modules do not need color inversion (unlike the ST7789 this
-	 * example originally targeted) -- verify visually and flip if colors look wrong. */
 	ESP_ERROR_CHECK(esp_lcd_panel_invert_color(s_ui_cb.panel_handle, false));
 
-	/* Unlike swap_xy, mirroring just reverses the address-increment direction
-	 * on one axis -- it doesn't need cross-axis data reordering, so it's safe
-	 * to combine with a partial/chunked flush buffer. This corrects a plain
-	 * left-right (mirror-image) flip left over after the software rotation
-	 * above; if it's still mirrored (or now mirrored the other way), swap
-	 * these two booleans. */
 	ESP_ERROR_CHECK(esp_lcd_panel_mirror(s_ui_cb.panel_handle, true, false));
-
-	/* Deliberately NOT calling esp_lcd_panel_swap_xy() here: combined with a
-	 * partial/chunked LVGL flush buffer (required -- a full 320x240 buffer
-	 * doesn't fit in internal DRAM), swap_xy only repositions the panel's
-	 * addressing window, not the pixel data layout per chunk, which corrupts
-	 * the image in content-dependent bands. Instead the panel stays in its
-	 * native 240x320 portrait orientation, and LVGL performs the 320x240
-	 * landscape rotation itself in software (flags.sw_rotate below), which
-	 * correctly rotates each partial chunk before it's sent to the panel. */
 
 	/* Turn on the screen */
 	ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(s_ui_cb.panel_handle, true));
 
-	/* Bring up the XPT2046 touch controller, sharing the LCD's SPI bus via its own CS line */
 	esp_lcd_panel_io_spi_config_t tp_io_config = ESP_LCD_TOUCH_IO_SPI_XPT2046_CONFIG(PIN_NUM_TOUCH_CS);
 	esp_lcd_panel_io_handle_t tp_io_handle = NULL;
 	ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)LCD_HOST, &tp_io_config, &tp_io_handle));
@@ -178,34 +148,9 @@ void lvgl_ui_init(void)
 	esp_lcd_touch_config_t tp_cfg = {
 			.x_max = LCD_PANEL_NATIVE_H_RES,
 			.y_max = LCD_PANEL_NATIVE_V_RES,
-			.rst_gpio_num = -1, /* XPT2046 has no reset line */
-			/* Wired to the PENIRQ line: with CONFIG_XPT2046_INTERRUPT_MODE
-			 * enabled, esp_lvgl_port switches the touch indev to
-			 * LV_INDEV_MODE_EVENT and only reads on a PENIRQ edge, instead of
-			 * polling every LVGL tick (~5ms). The LCD (queued/DMA color
-			 * transfers) and this touch controller (blocking polling reads)
-			 * share one physical SPI bus; polling on every tick left a wide,
-			 * constantly-open window for the touch read to race the LCD's
-			 * still in-flight queued transactions, which under heavy BT/audio
-			 * load could wedge the shared bus and freeze the whole display
-			 * (esp_lvgl_port's render task holds the LVGL mutex the entire
-			 * time it's blocked inside that read). Event mode shrinks that
-			 * window to "only while a finger is actually on the glass". */
+			.rst_gpio_num = -1,
 			.int_gpio_num = PIN_NUM_TOUCH_IRQ,
 			.flags = {
-					/* raw touch coords are in the panel's native (un-rotated) frame;
-					 * LVGL's rotation remap (lv_indev.c, driven by
-					 * lv_display_set_rotation below) then maps that native frame
-					 * into the 320x240 logical landscape frame. That remap only
-					 * accounts for the LCD's own rotation -- it assumes the touch
-					 * digitizer's native X/Y axes already line up with the LCD
-					 * panel's native address raster. On this hardware they don't:
-					 * empirically, a native-frame Y mirror was required to match
-					 * touch position to the button. With rotation=90, mirroring Y
-					 * in the native frame ends up flipping left/right in the final
-					 * logical frame while leaving vertical position unaffected,
-					 * which is exactly the left/right mismatch this corrects for.
-					 * If the mount changes, re-derive empirically. */
 					.swap_xy = 0,
 					.mirror_x = 0,
 					.mirror_y = 1,
@@ -241,15 +186,9 @@ void lvgl_ui_init(void)
 	};
 	s_ui_cb.disp_handle = lvgl_port_add_disp(&disp_cfg);
 
-	/* handoff primitives must exist before create_task() below spins up
-	 * cover_art_decode_task, which blocks on decode_sem immediately -- taking
-	 * a NULL semaphore/mutex crashes FreeRTOS and manifests as a boot loop */
 	s_ui_cb.decode_sem = xSemaphoreCreateBinary();
 	s_ui_cb.pending_mutex = xSemaphoreCreateMutex();
 
-	/* Logically rotate to 320x240 landscape for the rest of the UI code.
-	 * Direction (90 vs 270) is hardware-mount dependent -- verify visually
-	 * and flip to LV_DISPLAY_ROTATION_270 if the image appears upside down. */
 	lv_display_set_rotation(s_ui_cb.disp_handle, LV_DISPLAY_ROTATION_90);
 
 	const lvgl_port_touch_cfg_t touch_cfg = {
@@ -260,19 +199,6 @@ void lvgl_ui_init(void)
 
 	if (lvgl_port_lock(0))
 	{
-		/* explicit, opaque background: the cover art is scale-to-fit and
-		 * centered, so any letterbox/pillarbox margin around a non-4:3 image
-		 * shows this color instead of whatever the panel's power-on RAM held */
-		// lv_obj_set_style_bg_color(lv_scr_act(), lv_color_black(), 0);
-		// lv_obj_set_style_bg_opa(lv_scr_act(), LV_OPA_COVER, 0);
-
-		// s_ui_cb.placeholder_label = lv_label_create(lv_scr_act());
-		// lv_label_set_text(s_ui_cb.placeholder_label, "Waiting for cover art...");
-		// lv_obj_center(s_ui_cb.placeholder_label);
-
-		// s_ui_cb.img_obj = lv_image_create(lv_scr_act());
-		// lv_obj_add_flag(s_ui_cb.img_obj, LV_OBJ_FLAG_HIDDEN);
-
 		anim_text_scroll_init();
 		ui_main_screen_init();
 		avrc_cover_art_decode_create_task();
@@ -280,6 +206,5 @@ void lvgl_ui_init(void)
 		lvgl_port_unlock();
 	}
 
-	/* Turn on backlight now that valid content is on screen */
 	lvgl_set_backlight_brightness(50);
 }

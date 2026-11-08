@@ -1,9 +1,3 @@
-/*
- * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Unlicense OR CC0-1.0
- */
-
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -21,7 +15,7 @@
 #include "freertos/task.h"
 
 #include "bt_app_core_utils.h"
-#include "bt_app_av.h"
+#include "sink.h"
 #include "bredr_app_common_utils.h"
 #include "avrcp_utils_tags.h"
 #include "avrcp_common_utils.h"
@@ -47,37 +41,11 @@ enum {
     BT_APP_EVT_STACK_UP = 0,
 };
 
-/* AVRCP volume (0-127) is mapped to PCM gain through a dB-linear ("audio
- * taper") curve rather than straight linear scaling: human loudness
- * perception is roughly logarithmic, so a linear multiplier makes low
- * settings sound far louder than their numeric fraction suggests (e.g.
- * iOS's lowest non-zero step, ~7/127, was landing near max headphone
- * comfort). AVRC_VOLUME_MAX_DB also caps the loudest output below full
- * digital scale so the PCM5102A's analog stage isn't driven into
- * distortion at AVRCP volume 127. Both values were picked empirically on
- * this hardware -- if max volume still distorts, lower AVRC_VOLUME_MAX_DB
- * further (e.g. -9.0f); if the low end is too quiet or too loud, adjust
- * AVRC_VOLUME_MIN_DB. volume==0 always forces exact digital silence,
- * independent of this curve. */
-#define AVRC_VOLUME_MAX_DB   (-6.0f)
+#define AVRC_VOLUME_MAX_DB   (-8.0f)
 #define AVRC_VOLUME_MIN_DB   (-50.0f)
 
-/********************************
- * STATIC VARIABLE DEFINITIONS
- *******************************/
-
-/* AVRCP absolute volume last received from the peer (0-127, 0x7f = 100%).
- * Defaults to max so audio isn't silently muted if the phone never sends
- * an initial SetAbsoluteVolume. Written only from bt_app_rc_tg_cb()
- * (Bluedroid callback context); read only from bt_app_a2d_data_cb()
- * (A2DP data callback context). volatile is sufficient: single-byte
- * load/store is atomic on ESP32, and one stale packet on a race is
- * harmless -- a mutex would just add latency to a per-packet hot path. */
 static volatile uint8_t s_avrc_volume = 50;
 
-/* reusable scratch buffer for volume-scaled PCM, grows via realloc only
- * when a larger packet than seen before arrives (stabilizes after the
- * first few packets of a connection since MTU is fixed for its lifetime) */
 static uint8_t *s_vol_scratch_buf = NULL;
 static uint32_t s_vol_scratch_cap = 0;
 
@@ -203,9 +171,6 @@ static void bt_app_avrc_ct_evt_hdl(uint16_t event, void *param)
     }
 }
 
-/* map AVRCP volume (0-127) to a linear PCM gain factor via the dB-linear
- * taper described above; volume 0 is an exact-zero special case (true
- * digital silence, not just "very quiet") */
 static float bt_app_avrc_volume_to_gain(uint8_t volume)
 {
     if (volume == 0) {
@@ -217,11 +182,6 @@ static float bt_app_avrc_volume_to_gain(uint8_t volume)
     return powf(10.0f, db / 20.0f);
 }
 
-/* scale 16-bit signed interleaved PCM by gain (linear factor from
- * bt_app_avrc_volume_to_gain) and forward it. data is int16_t samples:
- * with internal SBC decode (i.e. CONFIG_EXAMPLE_A2DP_SINK_USE_EXTERNAL_CODEC
- * unset), Bluedroid always hands us standard interleaved 16-bit signed PCM
- * and len is always even. */
 static void bt_app_a2d_scale_and_forward(const uint8_t *data, uint32_t len, float gain)
 {
     if (len > s_vol_scratch_cap) {
