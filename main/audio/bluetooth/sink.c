@@ -13,6 +13,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_timer.h"
 
 #include "bt_app_core_utils.h"
 #include "sink.h"
@@ -45,6 +46,12 @@ static volatile uint8_t s_avrc_volume = 50;
 static uint8_t *s_vol_scratch_buf = NULL;
 static uint32_t s_vol_scratch_cap = 0;
 
+//resync period for updating current playback status
+#define PLAY_STATUS_RESYNC_PERIOD_US (5 * 1000 * 1000)
+
+static volatile bool s_avrc_ct_connected = false;
+static esp_timer_handle_t s_play_status_timer = NULL;
+
 /********************************
  * STATIC FUNCTION DEFINITIONS
  *******************************/
@@ -54,6 +61,25 @@ static void bt_app_avrc_request_play_status(void)
     esp_err_t err = esp_avrc_ct_send_get_play_status_cmd(bt_avrc_common_alloc_tl());
     if (err != ESP_OK) {
         ESP_LOGW(BT_RC_CT_TAG, "Failed to request play status: %s", esp_err_to_name(err));
+    }
+}
+
+// runs on BtAppTask
+static void bt_app_play_status_resync_hdl(uint16_t event, void *param)
+{
+    (void)event;
+    (void)param;
+    if (s_avrc_ct_connected && player_is_playing()) {
+        bt_app_avrc_request_play_status();
+    }
+}
+
+// runs on the esp_timer task: only hand off, never call AVRC APIs here
+static void bt_app_play_status_timer_cb(void *arg)
+{
+    (void)arg;
+    if (s_avrc_ct_connected) {
+        bt_app_work_dispatch(bt_app_play_status_resync_hdl, 0, NULL, 0, NULL, NULL);
     }
 }
 
@@ -72,6 +98,10 @@ static void bt_app_avrc_ct_evt_hdl(uint16_t event, void *param)
     case ESP_AVRC_CT_CONNECTION_STATE_EVT: {
         bt_avrc_md_ct_evt_hdl(event, param);
         bt_avrc_ca_ct_evt_hdl(event, param);
+        s_avrc_ct_connected = rc->conn_stat.connected;
+        if (!rc->conn_stat.connected) {
+            player_set_playing(false);
+        }
         if (rc->conn_stat.connected) {
             /* get remote supported event_ids of peer AVRCP Target */
             bt_avrc_common_ct_get_peer_rn_cap();
@@ -84,6 +114,9 @@ static void bt_app_avrc_ct_evt_hdl(uint16_t event, void *param)
     case ESP_AVRC_CT_CHANGE_NOTIFY_EVT: {
         if (rc->change_ntf.event_id == ESP_AVRC_RN_TRACK_CHANGE) {
             player_clear_metadata();
+        } else if (rc->change_ntf.event_id == ESP_AVRC_RN_PLAY_STATUS_CHANGE) {
+            //pause progress updating, resync position
+            player_set_playing(rc->change_ntf.event_parameter.playback == ESP_AVRC_PLAYBACK_PLAYING);
         }
         bt_avrc_md_ct_evt_hdl(event, param);
         bt_avrc_ca_ct_evt_hdl(event, param);
@@ -100,7 +133,9 @@ static void bt_app_avrc_ct_evt_hdl(uint16_t event, void *param)
                  rc->play_status_rsp.song_position / 1000,
                  rc->play_status_rsp.song_length / 1000);
 
-        player_set_progress(rc->play_status_rsp.song_position, rc->play_status_rsp.song_length);
+        //freeze bar while seeking
+        player_set_progress(rc->play_status_rsp.song_position, rc->play_status_rsp.song_length,
+                            rc->play_status_rsp.play_status == ESP_AVRC_PLAYBACK_PLAYING);
 
         bt_avrc_common_ct_evt_def_hdl(event, param);
         break;
@@ -402,6 +437,14 @@ static void bt_av_hdl_stack_evt(uint16_t event, void *p_param)
 void bt_app_init(void) {
     ESP_ERROR_CHECK(bredr_app_common_init());
     bt_app_task_start_up();
+
+    const esp_timer_create_args_t play_status_timer_args = {
+        .callback = bt_app_play_status_timer_cb,
+        .name = "play_status_resync",
+    };
+    ESP_ERROR_CHECK(esp_timer_create(&play_status_timer_args, &s_play_status_timer));
+    ESP_ERROR_CHECK(esp_timer_start_periodic(s_play_status_timer, PLAY_STATUS_RESYNC_PERIOD_US));
+
     /* bluetooth device name, connection mode and profile set up */
     bt_app_work_dispatch(bt_av_hdl_stack_evt, BT_APP_EVT_STACK_UP, NULL, 0, NULL, NULL);
 }

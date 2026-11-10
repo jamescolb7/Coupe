@@ -4,6 +4,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "esp_timer.h"
 
 #include "player.h"
 
@@ -88,7 +89,10 @@ void player_clear_metadata(void)
 	s_title_valid = false;
 	s_artist_valid = false;
 	s_album_valid = false;
-	s_dirty |= PLAYER_DIRTY_META;
+	//new track starts from 0 until the peer reports otherwise
+	s_state.position_ms = 0;
+	s_state.position_stamp_us = esp_timer_get_time();
+	s_dirty |= PLAYER_DIRTY_META | PLAYER_DIRTY_PROGRESS;
 	unlock();
 }
 
@@ -106,13 +110,51 @@ void player_set_connected(bool connected, const char *device_name)
 	unlock();
 }
 
-void player_set_progress(uint32_t position_ms, uint32_t length_ms)
+uint32_t player_position_at(const player_snapshot_t *s, int64_t now_us)
+{
+	if (!s->playing || now_us <= s->position_stamp_us) {
+		return s->position_ms;
+	}
+	uint64_t pos = (uint64_t)s->position_ms + (uint64_t)(now_us - s->position_stamp_us) / 1000;
+	/* 0xFFFFFFFF = length unknown: don't clamp to it */
+	if (s->length_ms != 0 && s->length_ms != UINT32_MAX && pos > s->length_ms) {
+		pos = s->length_ms;
+	}
+	return pos > UINT32_MAX ? UINT32_MAX : (uint32_t)pos;
+}
+
+void player_set_progress(uint32_t position_ms, uint32_t length_ms, bool playing)
 {
 	lock();
 	s_state.position_ms = position_ms;
 	s_state.length_ms = length_ms;
+	s_state.position_stamp_us = esp_timer_get_time();
+	s_state.playing = playing;
 	s_dirty |= PLAYER_DIRTY_PROGRESS;
 	unlock();
+}
+
+void player_set_playing(bool playing)
+{
+	lock();
+	if (s_state.playing != playing) {
+		int64_t now = esp_timer_get_time();
+		/* re-anchor at the current extrapolated position, so pausing
+		 * freezes the bar where it is and resuming continues from there */
+		s_state.position_ms = player_position_at(&s_state, now);
+		s_state.position_stamp_us = now;
+		s_state.playing = playing;
+		s_dirty |= PLAYER_DIRTY_PROGRESS;
+	}
+	unlock();
+}
+
+bool player_is_playing(void)
+{
+	lock();
+	bool playing = s_state.playing;
+	unlock();
+	return playing;
 }
 
 void player_set_cover(uint16_t *pixels, uint16_t w, uint16_t h)

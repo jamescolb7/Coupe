@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "esp_lvgl_port.h"
+#include "esp_timer.h"
 #include "ui/ui_sync.h"
 #include "ui/screens/main.h"
 #include "ui/animations.h"
@@ -64,19 +65,45 @@ static void apply_conn(const player_snapshot_t *s)
 	label_set_if_changed(ui_connected_label, s->connected ? ICON_CONNECTED : ICON_DISCONNECTED);
 }
 
+/* last bar position drawn, in pixels; -1 forces a redraw */
+static int32_t s_progress_px = -1;
+static bool s_progress_valid;
+
+/* new report from the peer: (re)configure the range */
 static void apply_progress(const player_snapshot_t *s)
 {
 	/* 0xFFFFFFFF = length not provided by the peer; also guard the int32 range */
-	if (s->length_ms == 0 || s->length_ms > INT32_MAX) {
+	s_progress_valid = s->length_ms != 0 && s->length_ms <= INT32_MAX;
+	s_progress_px = -1;
+
+	if (!s_progress_valid) {
 		lv_bar_set_range(ui_progress_bar, 0, 1);
 		lv_bar_set_value(ui_progress_bar, 0, LV_ANIM_OFF);
 		return;
 	}
-
-	uint32_t pos = s->position_ms > s->length_ms ? s->length_ms : s->position_ms;
 	/* range first, so the new value isn't clamped against the old range */
 	lv_bar_set_range(ui_progress_bar, 0, (int32_t)s->length_ms);
-	lv_bar_set_value(ui_progress_bar, (int32_t)pos, LV_ANIM_ON);
+}
+
+static void update_progress(const player_snapshot_t *s)
+{
+	if (!s_progress_valid) {
+		return;
+	}
+
+	uint32_t pos = player_position_at(s, esp_timer_get_time());
+	if (pos > s->length_ms) {
+		pos = s->length_ms;
+	}
+
+	/* only touch the widget when the indicator moves by a pixel */
+	int32_t width = lv_obj_get_width(ui_progress_bar);
+	int32_t px = width > 0 ? (int32_t)(((uint64_t)pos * (uint32_t)width) / s->length_ms) : 0;
+	if (px == s_progress_px) {
+		return;
+	}
+	s_progress_px = px;
+	lv_bar_set_value(ui_progress_bar, (int32_t)pos, LV_ANIM_OFF);
 }
 
 static void apply_cover(player_snapshot_t *s)
@@ -111,10 +138,8 @@ static void ui_sync_timer_cb(lv_timer_t *timer)
 {
 	(void)timer;
 
+	/* s_snap keeps the last state when nothing is dirty */
 	uint32_t dirty = player_take_snapshot(&s_snap);
-	if (!dirty) {
-		return;
-	}
 
 	if (dirty & PLAYER_DIRTY_CONN) {
 		apply_conn(&s_snap);
@@ -128,6 +153,8 @@ static void ui_sync_timer_cb(lv_timer_t *timer)
 	if (dirty & PLAYER_DIRTY_COVER) {
 		apply_cover(&s_snap);
 	}
+
+	update_progress(&s_snap);
 }
 
 void ui_sync_init(void)

@@ -22,6 +22,8 @@ typedef struct {
 
 	uint32_t position_ms;
 	uint32_t length_ms;
+	int64_t position_stamp_us;
+	bool playing;
 
 	/* ownership of cover_pixels passes to the snapshot taker (NULL if none) */
 	uint16_t *cover_pixels;
@@ -36,9 +38,14 @@ void player_set_artist(const char *text, int len);
 void player_set_album(const char *text, int len);
 void player_clear_metadata(void);
 void player_set_connected(bool connected, const char *device_name /* nullable: keep current */);
-void player_set_progress(uint32_t position_ms, uint32_t length_ms);
-/* takes ownership of pixels (heap allocated, RGB565, w*h) */
 void player_set_cover(uint16_t *pixels, uint16_t w, uint16_t h);
+
+//progress bar handling/player state
+void player_set_progress(uint32_t position_ms, uint32_t length_ms, bool playing);
+void player_set_playing(bool playing);
+bool player_is_playing(void);
+uint32_t player_position_at(const player_snapshot_t *s, int64_t now_us);
+
 
 /* consumer (LVGL task): copies state into out, clears dirty bits, returns
  * the mask of what changed since the last call */
