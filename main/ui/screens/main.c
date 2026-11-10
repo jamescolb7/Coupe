@@ -102,7 +102,7 @@ void ui_main_screen_init(void)
     lv_label_set_text(ui_Label2, "Coupe");
     lv_obj_set_style_text_color(ui_Label2, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_Label2, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_Label2, &lv_font_montserrat_30, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_Label2, &inter_20, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Label3 = lv_label_create(ui_Home);
     lv_obj_set_width(ui_Label3, LV_SIZE_CONTENT);  /// 1
@@ -113,6 +113,7 @@ void ui_main_screen_init(void)
     lv_label_set_text(ui_Label3, "Version 1");
     lv_obj_set_style_text_color(ui_Label3, lv_color_hex(0xAFAFAF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_Label3, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_Label3, &inter_12, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Search = lv_tabview_add_tab(ui_TabView1, "");
 
@@ -124,6 +125,7 @@ void ui_main_screen_init(void)
     lv_textarea_set_one_line(ui_TextArea1, true);
     lv_obj_set_style_text_color(ui_TextArea1, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_TextArea1, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_TextArea1, &inter_12, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_color(ui_TextArea1, lv_color_hex(0x232323), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_TextArea1, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_color(ui_TextArea1, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -155,7 +157,7 @@ void ui_main_screen_init(void)
     lv_obj_clear_flag(ui_title_label, LV_OBJ_FLAG_SCROLLABLE); /// Flags
     lv_obj_set_style_text_color(ui_title_label, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_title_label, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_title_label, &lv_font_montserrat_20, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_title_label, &inter_20, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Back = lv_btn_create(ui_Now_Playing);
     lv_obj_set_width(ui_Back, 40);
@@ -258,7 +260,7 @@ void ui_main_screen_init(void)
     lv_label_set_text(ui_subtitle_label, "Now discoverable as Coupe.");
     lv_obj_set_style_text_color(ui_subtitle_label, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_subtitle_label, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_subtitle_label, &lv_font_montserrat_12, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_subtitle_label, &inter_12, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     lv_obj_add_style(ui_title_label, &anim_text_scroll_sync, LV_PART_MAIN);
     lv_obj_add_style(ui_subtitle_label, &anim_text_scroll_sync, LV_PART_MAIN);
@@ -280,6 +282,7 @@ void ui_main_screen_init(void)
     lv_label_set_text(ui_Label9, "Brightness");
     lv_obj_set_style_text_color(ui_Label9, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_Label9, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_Label9, &inter_12, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Slider1 = lv_slider_create(ui_Settings);
     lv_slider_set_value(ui_Slider1, 50, LV_ANIM_OFF);
@@ -324,6 +327,7 @@ void ui_main_screen_init(void)
     lv_obj_set_height(ui_Keyboard, 120);
     lv_obj_set_align(ui_Keyboard, LV_ALIGN_BOTTOM_MID);
     lv_obj_add_flag(ui_Keyboard, LV_OBJ_FLAG_HIDDEN); /// Flags
+    lv_obj_set_style_text_font(ui_Keyboard, &inter_12, LV_PART_ITEMS | LV_STATE_DEFAULT);
 
     lv_obj_add_event_cb(ui_TextArea1, ui_event_TextArea1, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Slider1, ui_event_brightness, LV_EVENT_ALL, NULL);
