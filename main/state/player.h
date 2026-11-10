@@ -2,25 +2,46 @@
 #define PLAYER_STATE_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
-extern char playing_title[256];
-extern char playing_album[256];
-extern char playing_artist[256];
+#define PLAYER_TEXT_MAX        256
+#define PLAYER_DEVICE_NAME_MAX 33
 
-// extern uint8_t *player_cover_data;
-// extern uint32_t player_cover_size;
+#define PLAYER_DIRTY_META     (1u << 0)
+#define PLAYER_DIRTY_CONN     (1u << 1)
+#define PLAYER_DIRTY_PROGRESS (1u << 2)
+#define PLAYER_DIRTY_COVER    (1u << 3)
 
-extern bool bt_connected;
-extern char connected_device_name[33];
+typedef struct {
+	char title[PLAYER_TEXT_MAX];
+	char artist[PLAYER_TEXT_MAX];
+	char album[PLAYER_TEXT_MAX];
 
-extern bool playing_title_valid;
-extern bool playing_album_valid;
-extern bool playing_artist_valid;
+	bool connected;
+	char device_name[PLAYER_DEVICE_NAME_MAX];
 
-extern bool connected_device_name_valid;
+	uint32_t position_ms;
+	uint32_t length_ms;
 
-void player_update_metadata(void);
+	/* ownership of cover_pixels passes to the snapshot taker (NULL if none) */
+	uint16_t *cover_pixels;
+	uint16_t cover_w;
+	uint16_t cover_h;
+} player_snapshot_t;
+
+void player_state_init(void);
+
+void player_set_title(const char *text, int len);
+void player_set_artist(const char *text, int len);
+void player_set_album(const char *text, int len);
 void player_clear_metadata(void);
-void player_connection_state(void);
+void player_set_connected(bool connected, const char *device_name /* nullable: keep current */);
+void player_set_progress(uint32_t position_ms, uint32_t length_ms);
+/* takes ownership of pixels (heap allocated, RGB565, w*h) */
+void player_set_cover(uint16_t *pixels, uint16_t w, uint16_t h);
+
+/* consumer (LVGL task): copies state into out, clears dirty bits, returns
+ * the mask of what changed since the last call */
+uint32_t player_take_snapshot(player_snapshot_t *out);
 
 #endif

@@ -27,10 +27,6 @@
 #include "avrcp_cover_art_service.h"
 #include "avrcp_cover_art_utils.h"
 
-#include "esp_lvgl_port.h"
-
-#include "ui/screens/main.h"
-#include "ui/animations.h"
 #include "state/player.h"
 
 /* device name */
@@ -104,11 +100,7 @@ static void bt_app_avrc_ct_evt_hdl(uint16_t event, void *param)
                  rc->play_status_rsp.song_position / 1000,
                  rc->play_status_rsp.song_length / 1000);
 
-         if (lvgl_port_lock(0)) {
-            lv_bar_set_value(ui_progress_bar, rc->play_status_rsp.song_position, LV_ANIM_ON);
-            lv_bar_set_max_value(ui_progress_bar, rc->play_status_rsp.song_length);
-            lvgl_port_unlock();
-        }
+        player_set_progress(rc->play_status_rsp.song_position, rc->play_status_rsp.song_length);
 
         bt_avrc_common_ct_evt_def_hdl(event, param);
         break;
@@ -129,21 +121,15 @@ static void bt_app_avrc_ct_evt_hdl(uint16_t event, void *param)
     case ESP_AVRC_CT_METADATA_RSP_EVT: {
         if (rc->meta_rsp.attr_text) {
             if (rc->meta_rsp.attr_id == ESP_AVRC_MD_ATTR_TITLE) {
-                snprintf(playing_title, sizeof(playing_title), "%.*s", (int)rc->meta_rsp.attr_length, (const char *)rc->meta_rsp.attr_text);
-                playing_title_valid = true;
-                player_update_metadata();
+                player_set_title((const char *)rc->meta_rsp.attr_text, (int)rc->meta_rsp.attr_length);
 
                 ESP_LOGI(BT_RC_CT_TAG, "AVRC metadata rsp: song title: %.*s", (int)rc->meta_rsp.attr_length, rc->meta_rsp.attr_text);
             } else if (rc->meta_rsp.attr_id == ESP_AVRC_MD_ATTR_ARTIST) {
-                snprintf(playing_artist, sizeof(playing_artist), "%.*s", (int)rc->meta_rsp.attr_length, (const char *)rc->meta_rsp.attr_text);
-                playing_artist_valid = true;
-                player_update_metadata();
+                player_set_artist((const char *)rc->meta_rsp.attr_text, (int)rc->meta_rsp.attr_length);
 
                 ESP_LOGI(BT_RC_CT_TAG, "AVRC metadata rsp: artist: %.*s", (int)rc->meta_rsp.attr_length, rc->meta_rsp.attr_text);
             } else if (rc->meta_rsp.attr_id == ESP_AVRC_MD_ATTR_ALBUM) {
-                snprintf(playing_album, sizeof(playing_album), "%.*s", (int)rc->meta_rsp.attr_length, (const char *)rc->meta_rsp.attr_text);
-                playing_album_valid = true;
-                player_update_metadata();
+                player_set_album((const char *)rc->meta_rsp.attr_text, (int)rc->meta_rsp.attr_length);
 
                 ESP_LOGI(BT_RC_CT_TAG, "AVRC metadata rsp: album: %.*s", (int)rc->meta_rsp.attr_length, rc->meta_rsp.attr_text);
             }
@@ -348,26 +334,19 @@ static void bt_app_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *pa
      * connection, paired or not. */
     case ESP_BT_GAP_ACL_CONN_CMPL_STAT_EVT:
         if (param->acl_conn_cmpl_stat.stat == ESP_BT_STATUS_SUCCESS) {
-            bt_connected = true;
-            player_connection_state();
+            player_set_connected(true, NULL);
             esp_bt_gap_read_remote_name(param->acl_conn_cmpl_stat.bda);
         }
         break;
     case ESP_BT_GAP_READ_REMOTE_NAME_EVT:
         if (param->read_rmt_name.stat == ESP_BT_STATUS_SUCCESS) {
-            snprintf(connected_device_name, sizeof(connected_device_name), "%.*s", (int)(sizeof(connected_device_name) - 1), (const char *)param->read_rmt_name.rmt_name);
-            connected_device_name_valid = true;
-            bt_connected = true;
-            player_connection_state();
-            player_update_metadata();
+            char name[PLAYER_DEVICE_NAME_MAX];
+            snprintf(name, sizeof(name), "%.*s", (int)(sizeof(name) - 1), (const char *)param->read_rmt_name.rmt_name);
+            player_set_connected(true, name);
         }
         break;
     case ESP_BT_GAP_ACL_DISCONN_CMPL_STAT_EVT:
-        connected_device_name[0] = '\0';
-        connected_device_name_valid = false;
-        bt_connected = false;
-        player_connection_state();
-        player_update_metadata();
+        player_set_connected(false, NULL);
         break;
     default:
         break;

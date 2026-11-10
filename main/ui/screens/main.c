@@ -330,7 +330,7 @@ void ui_main_screen_init(void)
     lv_obj_set_style_text_font(ui_Keyboard, &inter_12, LV_PART_ITEMS | LV_STATE_DEFAULT);
 
     lv_obj_add_event_cb(ui_TextArea1, ui_event_TextArea1, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_Slider1, ui_event_brightness, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_Slider1, ui_event_brightness, LV_EVENT_VALUE_CHANGED, NULL);
     lv_keyboard_set_textarea(ui_Keyboard, ui_TextArea1);
 }
 

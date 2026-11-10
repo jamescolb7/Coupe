@@ -24,6 +24,7 @@
 #include "ui/screens/loader.h"
 #include "ui/screens/main.h"
 #include "ui/animations.h"
+#include "ui/ui_sync.h"
 
 #define LCD_HOST       SPI2_HOST
 #define LCD_PIXEL_CLOCK_HZ (60 * 1000 * 1000)
@@ -201,6 +202,8 @@ void lvgl_ui_init(void)
 	{
 		anim_text_scroll_init();
 		ui_main_screen_init();
+		//handles new ui update clock
+		ui_sync_init();
 		avrc_cover_art_decode_create_task();
 		
 		lvgl_port_unlock();

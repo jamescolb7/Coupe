@@ -15,9 +15,11 @@
 #include "avrcp_cover_art_service.h"
 
 #include "ui/lvgl.h"
+#include "state/player.h"
 
 void app_main(void)
 {
+    player_state_init();
     lvgl_ui_init();
     bt_app_init();
 }

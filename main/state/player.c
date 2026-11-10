@@ -1,73 +1,148 @@
-#include "esp_err.h"
-#include "esp_lvgl_port.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 
 #include "player.h"
-#include "ui/screens/main.h"
-#include "ui/animations.h"
 
-char playing_title[256] = {0};
-char playing_album[256] = {0};
-char playing_artist[256] = {0};
+static SemaphoreHandle_t s_mutex;
+static player_snapshot_t s_state;
+static uint32_t s_dirty;
 
-bool bt_connected = false;
-char connected_device_name[33] = {0};
+static bool s_title_valid;
+static bool s_artist_valid;
+static bool s_album_valid;
 
-// uint8_t *player_cover_data;
-// uint32_t player_cover_size;
-
-bool playing_title_valid = false;
-bool playing_album_valid = false;
-bool playing_artist_valid = false;
-
-bool connected_device_name_valid = false;
-// bool player_cover_valid = false;
-
-void player_update_metadata(void) {
-	if (!playing_title_valid || !playing_album_valid || !playing_artist_valid) return;
-
-	if (lvgl_port_lock(0)) {
-		// player_cover_valid = false;
-
-		bool playing_title_empty = playing_title[0] == '\0';
-		bool playing_artist_empty = playing_artist[0] == '\0';
-		bool playing_album_empty = playing_artist[0] == '\0';
-		bool connected_device_name_empty = connected_device_name[0] == '\0';
-
-		if (playing_artist_empty && playing_album_empty) {
-			lv_label_set_text_fmt(ui_subtitle_label, "Connected to %s.", connected_device_name_empty ? "Unknown" : connected_device_name);
-		} else if (playing_artist_empty || playing_album_empty) {
-			lv_label_set_text_fmt(ui_subtitle_label, "%s", playing_artist_empty ? playing_album : playing_artist);
-		} else {
-			lv_label_set_text_fmt(ui_subtitle_label, "%s • %s", playing_artist, playing_album);
-		}
-
-		lv_label_set_text_fmt(ui_title_label, "%s", playing_title_empty ? "Not Playing" : playing_title);
-		ui_marquee_resync();
-	}
-
-	playing_title_valid = false;
-	playing_album_valid = false;
-	playing_artist_valid = false;
-
-	lvgl_port_unlock();
+static void lock(void)
+{
+	xSemaphoreTake(s_mutex, portMAX_DELAY);
 }
 
-void player_clear_metadata(void) {
-	playing_title[0] = '\0';
-	playing_album[0] = '\0';
-	playing_artist[0] = '\0';
-
-	playing_title_valid = true;
-	playing_artist_valid = true;
-	playing_album_valid = true;
-
-	player_update_metadata();
+static void unlock(void)
+{
+	xSemaphoreGive(s_mutex);
 }
 
-void player_connection_state(void) {
-	if (lvgl_port_lock(0)) {
-		lv_label_set_text_fmt(ui_connected_label, "%s", bt_connected ? "" : "");
+static void copy_text(char *dst, size_t dst_size, const char *text, int len)
+{
+	if (!text || len <= 0) {
+		dst[0] = '\0';
+		return;
 	}
+	snprintf(dst, dst_size, "%.*s", len, text);
+}
 
-	lvgl_port_unlock();
+static void publish_meta_if_complete(void)
+{
+	if (s_title_valid && s_artist_valid && s_album_valid) {
+		s_dirty |= PLAYER_DIRTY_META;
+		s_title_valid = false;
+		s_artist_valid = false;
+		s_album_valid = false;
+	}
+}
+
+void player_state_init(void)
+{
+	if (!s_mutex) {
+		s_mutex = xSemaphoreCreateMutex();
+		configASSERT(s_mutex);
+	}
+}
+
+void player_set_title(const char *text, int len)
+{
+	lock();
+	copy_text(s_state.title, sizeof(s_state.title), text, len);
+	s_title_valid = true;
+	publish_meta_if_complete();
+	unlock();
+}
+
+void player_set_artist(const char *text, int len)
+{
+	lock();
+	copy_text(s_state.artist, sizeof(s_state.artist), text, len);
+	s_artist_valid = true;
+	publish_meta_if_complete();
+	unlock();
+}
+
+void player_set_album(const char *text, int len)
+{
+	lock();
+	copy_text(s_state.album, sizeof(s_state.album), text, len);
+	s_album_valid = true;
+	publish_meta_if_complete();
+	unlock();
+}
+
+void player_clear_metadata(void)
+{
+	lock();
+	s_state.title[0] = '\0';
+	s_state.artist[0] = '\0';
+	s_state.album[0] = '\0';
+	s_title_valid = false;
+	s_artist_valid = false;
+	s_album_valid = false;
+	s_dirty |= PLAYER_DIRTY_META;
+	unlock();
+}
+
+void player_set_connected(bool connected, const char *device_name)
+{
+	lock();
+	s_state.connected = connected;
+	if (!connected) {
+		s_state.device_name[0] = '\0';
+	} else if (device_name) {
+		snprintf(s_state.device_name, sizeof(s_state.device_name), "%s", device_name);
+	}
+	//whenever there is no metadata/data, show device name/not playing
+	s_dirty |= PLAYER_DIRTY_CONN | PLAYER_DIRTY_META;
+	unlock();
+}
+
+void player_set_progress(uint32_t position_ms, uint32_t length_ms)
+{
+	lock();
+	s_state.position_ms = position_ms;
+	s_state.length_ms = length_ms;
+	s_dirty |= PLAYER_DIRTY_PROGRESS;
+	unlock();
+}
+
+void player_set_cover(uint16_t *pixels, uint16_t w, uint16_t h)
+{
+	uint16_t *superseded = NULL;
+
+	lock();
+	superseded = s_state.cover_pixels;
+	s_state.cover_pixels = pixels;
+	s_state.cover_w = w;
+	s_state.cover_h = h;
+	s_dirty |= PLAYER_DIRTY_COVER;
+	unlock();
+
+	free(superseded);
+}
+
+uint32_t player_take_snapshot(player_snapshot_t *out)
+{
+	lock();
+	uint32_t dirty = s_dirty;
+	if (dirty) {
+		memcpy(out, &s_state, sizeof(*out));
+		s_state.cover_pixels = NULL;
+		s_dirty = 0;
+	}
+	unlock();
+
+	if (!(dirty & PLAYER_DIRTY_COVER)) {
+		out->cover_pixels = NULL;
+	}
+	return dirty;
 }

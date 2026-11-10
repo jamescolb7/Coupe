@@ -15,20 +15,12 @@
 #include "driver/gpio.h"
 #include "esp_log.h"
 #include "esp_check.h"
-// #include "esp_lcd_panel_io.h"
-// #include "esp_lcd_panel_ops.h"
-// #include "esp_lcd_ili9341.h"
-// #include "esp_lcd_touch.h"
-// #include "esp_lcd_touch_xpt2046.h"
-// #include "esp_lvgl_port.h"
-// #include "lvgl.h"
 #include "esp_lvgl_port.h"
 #include "jpeg_decoder.h"
 #include "avrcp_common_utils.h"
 #include "avrcp_cover_art_service.h"
 #include "ui/lvgl.h"
-
-#include "ui/screens/main.h"
+#include "state/player.h"
 
 /* tags*/
 #define RC_CA_SRV_TAG  "RC_CA_SRV"
@@ -155,208 +147,13 @@ static void cover_art_decode_task(void *arg)
         }
         ESP_LOGI(RC_CA_SRV_TAG, "Cover art decoded: %dpx x %dpx", outimg.width, outimg.height);
 
-        if (lvgl_port_lock(0)) {
-            if (s_ui_cb.img_dsc.data) {
-                free((void *)s_ui_cb.img_dsc.data);
-            }
-            s_ui_cb.img_dsc.header.w = outimg.width;
-            s_ui_cb.img_dsc.header.h = outimg.height;
-            s_ui_cb.img_dsc.header.cf = LV_COLOR_FORMAT_RGB565;
-            s_ui_cb.img_dsc.header.stride = outimg.width * sizeof(uint16_t);
-            s_ui_cb.img_dsc.data_size = (uint32_t)outimg.width * outimg.height * sizeof(uint16_t);
-            s_ui_cb.img_dsc.data = (uint8_t *)pixels;
-
-            lv_image_set_src(ui_album_image, &s_ui_cb.img_dsc);
-
-
-
-            // /* scale to fit the 320x240 screen, preserving aspect ratio, never upscaling */
-            // uint32_t scale_w = (LCD_H_RES * 256) / outimg.width;
-            // uint32_t scale_h = (LCD_H_RES * 256) / outimg.height;
-            // uint32_t scale = (scale_w < scale_h) ? scale_w : scale_h;
-            // if (scale > 256) {
-            //     scale = 256;
-            // }
-            // lv_image_set_scale(s_ui_cb.img_obj, scale);
-            // lv_obj_center(s_ui_cb.img_obj);
-
-            // lv_obj_add_flag(s_ui_cb.placeholder_label, LV_OBJ_FLAG_HIDDEN);
-            // lv_obj_clear_flag(s_ui_cb.img_obj, LV_OBJ_FLAG_HIDDEN);
-
-            lvgl_port_unlock();
-        } else {
-            free(pixels);
-        }
+        player_set_cover(pixels, outimg.width, outimg.height);
     }
 }
 
 /********************************
  * EXTERNAL FUNCTION DEFINITIONS
  *******************************/
-
-// void avrc_cover_art_srv_ui_init(void)
-// {
-//     gpio_config_t bk_gpio_config = {
-//         .mode = GPIO_MODE_OUTPUT,
-//         .pin_bit_mask = 1ULL << EXAMPLE_PIN_NUM_BK_LIGHT
-//     };
-//     /* Initialize the GPIO of backlight */
-//     ESP_ERROR_CHECK(gpio_config(&bk_gpio_config));
-
-//     /* Turn off backlight to avoid unpredictable display on the LCD screen while initializing
-//      * the LCD panel driver. (Different LCD screens may need different levels) */
-//     ESP_ERROR_CHECK(gpio_set_level(EXAMPLE_PIN_NUM_BK_LIGHT, EXAMPLE_LCD_BK_LIGHT_OFF_LEVEL));
-
-//     spi_bus_config_t buscfg = {
-//         .sclk_io_num = EXAMPLE_PIN_NUM_PCLK,
-//         .mosi_io_num = EXAMPLE_PIN_NUM_DATA0,
-//         .miso_io_num = EXAMPLE_PIN_NUM_MISO,
-//         .quadwp_io_num = -1,
-//         .quadhd_io_num = -1,
-//         .max_transfer_sz = CONFIG_EXAMPLE_LVGL_BUF_LINES * EXAMPLE_LCD_H_RES * sizeof(uint16_t) + 8
-//     };
-//     /* Initialize the SPI bus (shared by the LCD and the XPT2046 touch controller) */
-//     ESP_ERROR_CHECK(spi_bus_initialize(LCD_HOST, &buscfg, SPI_DMA_CH_AUTO));
-
-//     esp_lcd_panel_io_spi_config_t io_config = {
-//         .dc_gpio_num = EXAMPLE_PIN_NUM_DC,
-//         .cs_gpio_num = EXAMPLE_PIN_NUM_CS,
-//         .pclk_hz = EXAMPLE_LCD_PIXEL_CLOCK_HZ,
-//         .lcd_cmd_bits = EXAMPLE_LCD_CMD_BITS,
-//         .lcd_param_bits = EXAMPLE_LCD_PARAM_BITS,
-//         .spi_mode = 0,
-//         .trans_queue_depth = 10,
-//     };
-//     /* Attach the LCD to the SPI bus */
-//     ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)LCD_HOST, &io_config, &s_ui_cb.io_handle));
-
-//     esp_lcd_panel_dev_config_t panel_config = {
-//         .reset_gpio_num = EXAMPLE_PIN_NUM_RST,
-//         .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_BGR,  /* this ILI9341 module's subpixel order is BGR, not RGB */
-//         .bits_per_pixel = 16,
-//     };
-//     /* Initialize the LCD configuration */
-//     ESP_ERROR_CHECK(esp_lcd_new_panel_ili9341(s_ui_cb.io_handle, &panel_config, &s_ui_cb.panel_handle));
-
-//     /* Reset the display */
-//     ESP_ERROR_CHECK(esp_lcd_panel_reset(s_ui_cb.panel_handle));
-
-//     /* Initialize LCD panel */
-//     ESP_ERROR_CHECK(esp_lcd_panel_init(s_ui_cb.panel_handle));
-
-//     /* Most ILI9341 modules do not need color inversion (unlike the ST7789 this
-//      * example originally targeted) -- verify visually and flip if colors look wrong. */
-//     ESP_ERROR_CHECK(esp_lcd_panel_invert_color(s_ui_cb.panel_handle, false));
-
-//     /* Unlike swap_xy, mirroring just reverses the address-increment direction
-//      * on one axis -- it doesn't need cross-axis data reordering, so it's safe
-//      * to combine with a partial/chunked flush buffer. This corrects a plain
-//      * left-right (mirror-image) flip left over after the software rotation
-//      * above; if it's still mirrored (or now mirrored the other way), swap
-//      * these two booleans. */
-//     ESP_ERROR_CHECK(esp_lcd_panel_mirror(s_ui_cb.panel_handle, true, false));
-
-//     /* Deliberately NOT calling esp_lcd_panel_swap_xy() here: combined with a
-//      * partial/chunked LVGL flush buffer (required -- a full 320x240 buffer
-//      * doesn't fit in internal DRAM), swap_xy only repositions the panel's
-//      * addressing window, not the pixel data layout per chunk, which corrupts
-//      * the image in content-dependent bands. Instead the panel stays in its
-//      * native 240x320 portrait orientation, and LVGL performs the 320x240
-//      * landscape rotation itself in software (flags.sw_rotate below), which
-//      * correctly rotates each partial chunk before it's sent to the panel. */
-
-//     /* Turn on the screen */
-//     ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(s_ui_cb.panel_handle, true));
-
-//     /* Bring up the XPT2046 touch controller, sharing the LCD's SPI bus via its own CS line */
-//     esp_lcd_panel_io_spi_config_t tp_io_config = ESP_LCD_TOUCH_IO_SPI_XPT2046_CONFIG(EXAMPLE_PIN_NUM_TOUCH_CS);
-//     esp_lcd_panel_io_handle_t tp_io_handle = NULL;
-//     ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)LCD_HOST, &tp_io_config, &tp_io_handle));
-
-//     esp_lcd_touch_config_t tp_cfg = {
-//         .x_max = EXAMPLE_LCD_PANEL_NATIVE_H_RES,
-//         .y_max = EXAMPLE_LCD_PANEL_NATIVE_V_RES,
-//         .rst_gpio_num = -1,   /* XPT2046 has no reset line */
-//         .int_gpio_num = EXAMPLE_PIN_NUM_TOUCH_IRQ,
-//         .flags = {
-//             /* raw touch coords are in the panel's native (un-rotated) frame;
-//              * esp_lvgl_port remaps them using the display's active rotation
-//              * (set via lv_display_set_rotation below), so no swap/mirror here
-//              * unless the touch panel itself is physically mounted flipped
-//              * relative to the LCD glass -- verify empirically. */
-//             .swap_xy = 0,
-//             .mirror_x = 0,
-//             .mirror_y = 0,
-//         },
-//     };
-//     ESP_ERROR_CHECK(esp_lcd_touch_new_spi_xpt2046(tp_io_handle, &tp_cfg, &s_ui_cb.tp_handle));
-
-//     /* Bring up esp_lvgl_port: dedicated LVGL task pinned to core 1 (the BT stack
-//      * is pinned to core 0 via CONFIG_BT_BLUEDROID_PINNED_TO_CORE_0) */
-//     const lvgl_port_cfg_t lvgl_cfg = {
-//         .task_priority = 4,
-//         .task_stack = 6144,
-//         .task_affinity = 1,
-//         .task_max_sleep_ms = 500,
-//         .timer_period_ms = 5,
-//     };
-//     ESP_ERROR_CHECK(lvgl_port_init(&lvgl_cfg));
-
-//     const lvgl_port_display_cfg_t disp_cfg = {
-//         .io_handle = s_ui_cb.io_handle,
-//         .panel_handle = s_ui_cb.panel_handle,
-//         .buffer_size = EXAMPLE_LCD_PANEL_NATIVE_H_RES * CONFIG_EXAMPLE_LVGL_BUF_LINES,
-//         .double_buffer = true,
-//         .hres = EXAMPLE_LCD_PANEL_NATIVE_H_RES,  /* native panel orientation: 240x320 portrait */
-//         .vres = EXAMPLE_LCD_PANEL_NATIVE_V_RES,
-//         .color_format = LV_COLOR_FORMAT_RGB565,
-//         .flags = {
-//             .buff_dma = true,
-//             .buff_spiram = false, /* plain ESP32 (unlike S2/S3) cannot DMA directly out of PSRAM */
-//             .sw_rotate = true,    /* rotate to 320x240 landscape in software, per-chunk */
-//             .swap_bytes = true,   /* SPI panels expect big-endian RGB565 on the wire */
-//         },
-//     };
-//     s_ui_cb.disp_handle = lvgl_port_add_disp(&disp_cfg);
-
-//     /* Logically rotate to 320x240 landscape for the rest of the UI code.
-//      * Direction (90 vs 270) is hardware-mount dependent -- verify visually
-//      * and flip to LV_DISPLAY_ROTATION_270 if the image appears upside down. */
-//     lv_display_set_rotation(s_ui_cb.disp_handle, LV_DISPLAY_ROTATION_90);
-
-//     const lvgl_port_touch_cfg_t touch_cfg = {
-//         .disp = s_ui_cb.disp_handle,
-//         .handle = s_ui_cb.tp_handle,
-//     };
-//     s_ui_cb.touch_indev = lvgl_port_add_touch(&touch_cfg);
-
-//     if (lvgl_port_lock(0)) {
-//         /* explicit, opaque background: the cover art is scale-to-fit and
-//          * centered, so any letterbox/pillarbox margin around a non-4:3 image
-//          * shows this color instead of whatever the panel's power-on RAM held */
-//         lv_obj_set_style_bg_color(lv_scr_act(), lv_color_black(), 0);
-//         lv_obj_set_style_bg_opa(lv_scr_act(), LV_OPA_COVER, 0);
-
-//         s_ui_cb.placeholder_label = lv_label_create(lv_scr_act());
-//         lv_label_set_text(s_ui_cb.placeholder_label, "Waiting for cover art...");
-//         lv_obj_center(s_ui_cb.placeholder_label);
-
-//         s_ui_cb.img_obj = lv_image_create(lv_scr_act());
-//         lv_obj_add_flag(s_ui_cb.img_obj, LV_OBJ_FLAG_HIDDEN);
-
-//         lvgl_port_unlock();
-//     }
-
-//     /* Turn on backlight now that valid content is on screen
-//      * (Different LCD screens may need different levels) */
-//     ESP_ERROR_CHECK(gpio_set_level(EXAMPLE_PIN_NUM_BK_LIGHT, EXAMPLE_LCD_BK_LIGHT_ON_LEVEL));
-
-//     /* handoff primitives + dedicated decode task, keeps JPEG decode and LVGL
-//      * calls off the shared, small-stack BtAppTask */
-//     s_ui_cb.decode_sem = xSemaphoreCreateBinary();
-//     s_ui_cb.pending_mutex = xSemaphoreCreateMutex();
-//     xTaskCreatePinnedToCore(cover_art_decode_task, "CoverArtDecode", 6144, NULL, 4, &s_ui_cb.decode_task_handle, 1);
-// }
 
 void avrc_cover_art_srv_open(void)
 {

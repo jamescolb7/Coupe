@@ -20,7 +20,6 @@ typedef struct {
 	lv_indev_t               *touch_indev;
 	lv_obj_t                 *img_obj;
 	lv_obj_t                 *placeholder_label;
-	lv_image_dsc_t            img_dsc;
 	SemaphoreHandle_t         decode_sem;
 	SemaphoreHandle_t         pending_mutex;
 	uint8_t                  *pending_data;
