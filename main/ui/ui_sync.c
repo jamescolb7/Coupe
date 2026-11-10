@@ -15,6 +15,10 @@
 #define ICON_CONNECTED    "\xEF\x80\x84" // U+F004
 #define ICON_DISCONNECTED "\xEF\x80\x85" // U+F005
 
+//pause/play buttons
+#define ICON_PAUSE        "\xEF\x80\x87" // U+F007
+#define ICON_PLAY         "\xEF\x80\x88" // U+F008
+
 static player_snapshot_t s_snap;
 static char s_subtitle[2 * PLAYER_TEXT_MAX + 8];
 
@@ -63,6 +67,11 @@ static void apply_meta(const player_snapshot_t *s)
 static void apply_conn(const player_snapshot_t *s)
 {
 	label_set_if_changed(ui_connected_label, s->connected ? ICON_CONNECTED : ICON_DISCONNECTED);
+}
+
+static void update_play_pause(const player_snapshot_t *s)
+{
+	label_set_if_changed(ui_Label1, s->playing ? ICON_PAUSE : ICON_PLAY);
 }
 
 /* last bar position drawn, in pixels; -1 forces a redraw */
@@ -154,6 +163,7 @@ static void ui_sync_timer_cb(lv_timer_t *timer)
 		apply_cover(&s_snap);
 	}
 
+	update_play_pause(&s_snap);
 	update_progress(&s_snap);
 }
 

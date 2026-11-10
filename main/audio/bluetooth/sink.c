@@ -83,6 +83,46 @@ static void bt_app_play_status_timer_cb(void *arg)
     }
 }
 
+// runs on BtAppTask: send one AVRCP passthrough key (press + release)
+static void bt_app_media_cmd_hdl(uint16_t event, void *param)
+{
+    (void)param;
+    if (!s_avrc_ct_connected) {
+        ESP_LOGW(BT_RC_CT_TAG, "media command 0x%x ignored: AVRCP not connected", event);
+        return;
+    }
+
+    uint8_t key = (uint8_t)event;
+    esp_err_t err = esp_avrc_ct_send_passthrough_cmd(bt_avrc_common_alloc_tl(), key, ESP_AVRC_PT_CMD_STATE_PRESSED);
+    if (err == ESP_OK) {
+        err = esp_avrc_ct_send_passthrough_cmd(bt_avrc_common_alloc_tl(), key, ESP_AVRC_PT_CMD_STATE_RELEASED);
+    }
+    if (err != ESP_OK) {
+        ESP_LOGW(BT_RC_CT_TAG, "passthrough 0x%x failed: %s", key, esp_err_to_name(err));
+    }
+}
+
+void bt_app_media_cmd(bt_app_media_cmd_t cmd)
+{
+    uint8_t key;
+    switch (cmd) {
+    case BT_APP_MEDIA_PLAY_PAUSE:
+        /* toggle based on the last known state reported by the peer */
+        key = player_is_playing() ? ESP_AVRC_PT_CMD_PAUSE : ESP_AVRC_PT_CMD_PLAY;
+        break;
+    case BT_APP_MEDIA_NEXT:
+        key = ESP_AVRC_PT_CMD_FORWARD;
+        break;
+    case BT_APP_MEDIA_PREV:
+        key = ESP_AVRC_PT_CMD_BACKWARD;
+        break;
+    default:
+        return;
+    }
+    /* never call AVRC APIs from the caller's task (e.g. the LVGL task) */
+    bt_app_work_dispatch(bt_app_media_cmd_hdl, key, NULL, 0, NULL, NULL);
+}
+
 static void bt_app_avrc_ct_evt_hdl(uint16_t event, void *param)
 {
     ESP_LOGD(BT_RC_CT_TAG, "%s event: %d", __func__, event);

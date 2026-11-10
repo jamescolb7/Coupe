@@ -47,4 +47,17 @@ void bt_app_rc_tg_cb(esp_avrc_tg_cb_event_t event, esp_avrc_tg_cb_param_t *param
 
 void bt_app_init(void);
 
+typedef enum {
+    BT_APP_MEDIA_PLAY_PAUSE = 0,
+    BT_APP_MEDIA_NEXT,
+    BT_APP_MEDIA_PREV,
+} bt_app_media_cmd_t;
+
+/**
+ * @brief  send a media control command to the connected phone (AVRCP
+ *         passthrough). Non-blocking and safe to call from any task,
+ *         including LVGL event callbacks.
+ */
+void bt_app_media_cmd(bt_app_media_cmd_t cmd);
+
 #endif /* __BT_APP_AV_H__*/

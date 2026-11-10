@@ -1,5 +1,6 @@
 #include "../ui.h"
 #include "../animations.h"
+#include "audio/bluetooth/sink.h"
 
 lv_obj_t *ui_Screen1 = NULL;
 lv_obj_t *ui_TabView1 = NULL;
@@ -37,6 +38,24 @@ void ui_event_TextArea1(lv_event_t *e)
     {
         _ui_flag_modify(ui_Keyboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
     }
+}
+
+static void ui_event_prev(lv_event_t *e)
+{
+    (void)e;
+    bt_app_media_cmd(BT_APP_MEDIA_PREV);
+}
+
+static void ui_event_play_pause(lv_event_t *e)
+{
+    (void)e;
+    bt_app_media_cmd(BT_APP_MEDIA_PLAY_PAUSE);
+}
+
+static void ui_event_next(lv_event_t *e)
+{
+    (void)e;
+    bt_app_media_cmd(BT_APP_MEDIA_NEXT);
 }
 
 void ui_event_brightness(lv_event_t *e)
@@ -331,6 +350,9 @@ void ui_main_screen_init(void)
 
     lv_obj_add_event_cb(ui_TextArea1, ui_event_TextArea1, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Slider1, ui_event_brightness, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_add_event_cb(ui_Back, ui_event_prev, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(ui_Back1, ui_event_play_pause, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(ui_Back2, ui_event_next, LV_EVENT_CLICKED, NULL);
     lv_keyboard_set_textarea(ui_Keyboard, ui_TextArea1);
 }
 
