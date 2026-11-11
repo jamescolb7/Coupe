@@ -74,6 +74,36 @@ static void update_play_pause(const player_snapshot_t *s)
 	label_set_if_changed(ui_Label1, s->playing ? ICON_PAUSE : ICON_PLAY);
 }
 
+#define VOLUME_OVERLAY_MS 2000
+
+static bool s_volume_visible;
+static uint32_t s_volume_shown_at;
+
+static void apply_volume(const player_snapshot_t *s)
+{
+	char text[8];
+	snprintf(text, sizeof(text), "%u%%", (unsigned)s->volume_pct);
+	label_set_if_changed(ui_volumepercent, text);
+
+	lv_bar_set_range(ui_volumebar, 0, 100);
+	lv_bar_set_value(ui_volumebar, s->volume_pct, LV_ANIM_OFF);
+
+	if (!s_volume_visible) {
+		lv_obj_move_foreground(ui_volumepanel); /* above the tabview/keyboard */
+		lv_obj_remove_flag(ui_volumepanel, LV_OBJ_FLAG_HIDDEN);
+		s_volume_visible = true;
+	}
+	s_volume_shown_at = lv_tick_get();
+}
+
+static void update_volume_overlay(void)
+{
+	if (s_volume_visible && lv_tick_elaps(s_volume_shown_at) >= VOLUME_OVERLAY_MS) {
+		lv_obj_add_flag(ui_volumepanel, LV_OBJ_FLAG_HIDDEN);
+		s_volume_visible = false;
+	}
+}
+
 /* last bar position drawn, in pixels; -1 forces a redraw */
 static int32_t s_progress_px = -1;
 static bool s_progress_valid;
@@ -163,6 +193,11 @@ static void ui_sync_timer_cb(lv_timer_t *timer)
 		apply_cover(&s_snap);
 	}
 
+	if (dirty & PLAYER_DIRTY_VOLUME) {
+		apply_volume(&s_snap);
+	}
+
+	update_volume_overlay();
 	update_play_pause(&s_snap);
 	update_progress(&s_snap);
 }

@@ -375,6 +375,7 @@ void bt_app_rc_tg_cb(esp_avrc_tg_cb_event_t event, esp_avrc_tg_cb_param_t *param
          * bt_app_work_dispatch() below runs asynchronously -- safe/immediate */
         s_avrc_volume = param->set_abs_vol.volume;
         ESP_LOGI(BT_RC_TG_TAG, "AVRCP absolute volume set to %u/127", (unsigned)s_avrc_volume);
+        player_set_volume(s_avrc_volume);
         bt_app_work_dispatch(bt_avrc_common_tg_evt_def_hdl, event, param, sizeof(esp_avrc_tg_cb_param_t), NULL, NULL);
         break;
     case ESP_AVRC_TG_REGISTER_NOTIFICATION_EVT:

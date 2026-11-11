@@ -149,6 +149,18 @@ void player_set_playing(bool playing)
 	unlock();
 }
 
+void player_set_volume(uint8_t avrc_volume)
+{
+	if (avrc_volume > 0x7f) {
+		avrc_volume = 0x7f;
+	}
+	lock();
+	//take 0-127 into 0-100
+	s_state.volume_pct = (uint8_t)(((uint32_t)avrc_volume * 100 + 63) / 127);
+	s_dirty |= PLAYER_DIRTY_VOLUME;
+	unlock();
+}
+
 bool player_is_playing(void)
 {
 	lock();

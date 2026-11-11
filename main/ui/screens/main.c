@@ -25,6 +25,9 @@ lv_obj_t *ui_Settings = NULL;
 lv_obj_t *ui_Label9 = NULL;
 lv_obj_t *ui_Slider1 = NULL;
 lv_obj_t *ui_Keyboard = NULL;
+lv_obj_t *ui_volumepanel = NULL;
+lv_obj_t *ui_volumepercent = NULL;
+lv_obj_t *ui_volumebar = NULL;
 // event funtions
 void ui_event_TextArea1(lv_event_t *e)
 {
@@ -108,6 +111,52 @@ void ui_main_screen_init(void)
     lv_obj_set_style_border_side(lv_tabview_get_tab_btns(ui_TabView1), LV_BORDER_SIDE_LEFT,
                                  LV_PART_ITEMS | LV_STATE_CHECKED);
     lv_obj_clear_flag(lv_tabview_get_content(ui_TabView1), LV_OBJ_FLAG_SCROLLABLE);
+
+    //volume sliders
+    ui_volumepanel = lv_obj_create(ui_Screen1);
+    lv_obj_set_width(ui_volumepanel, 270);
+    lv_obj_set_height(ui_volumepanel, 40);
+    lv_obj_set_x(ui_volumepanel, 50);
+    lv_obj_set_y(ui_volumepanel, 0);
+    lv_obj_remove_flag(ui_volumepanel, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    lv_obj_add_flag(ui_volumepanel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_style_radius(ui_volumepanel, 0, (lv_style_selector_t)LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_volumepanel, lv_color_hex(0x232323), (lv_style_selector_t)LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_volumepanel, 255, (lv_style_selector_t)LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_width(ui_volumepanel, 0, (lv_style_selector_t)LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_left(ui_volumepanel, 0, (lv_style_selector_t)LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_right(ui_volumepanel, 0, (lv_style_selector_t)LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_top(ui_volumepanel, 0, (lv_style_selector_t)LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_bottom(ui_volumepanel, 0, (lv_style_selector_t)LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_volumepercent = lv_label_create(ui_volumepanel);
+    lv_obj_set_width(ui_volumepercent, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_volumepercent, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_volumepercent, -9);
+    lv_obj_set_y(ui_volumepercent, 0);
+    lv_obj_set_align(ui_volumepercent, LV_ALIGN_RIGHT_MID);
+    lv_label_set_text(ui_volumepercent, "100%");
+    lv_obj_set_style_text_color(ui_volumepercent, lv_color_hex(0xFFFFFF),
+                                (lv_style_selector_t)LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_volumepercent, 255, (lv_style_selector_t)LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_volumebar = lv_bar_create(ui_volumepanel);
+    lv_bar_set_value(ui_volumebar, 25, LV_ANIM_OFF);
+    lv_bar_set_start_value(ui_volumebar, 0, LV_ANIM_OFF);
+    lv_obj_set_width(ui_volumebar, 204);
+    lv_obj_set_height(ui_volumebar, 8);
+    lv_obj_set_x(ui_volumebar, 10);
+    lv_obj_set_y(ui_volumebar, 0);
+    lv_obj_set_align(ui_volumebar, LV_ALIGN_LEFT_MID);
+    lv_obj_set_style_bg_color(ui_volumebar, lv_color_hex(0x4F4F4F), (lv_style_selector_t)LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_volumebar, 255, (lv_style_selector_t)LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    lv_obj_set_style_bg_color(ui_volumebar, lv_color_hex(0xFFFFFF),
+                              (lv_style_selector_t)LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_volumebar, 255, (lv_style_selector_t)LV_PART_INDICATOR | LV_STATE_DEFAULT);
+
+    //Compensating for LVGL9.1 draw crash with bar/slider max value when top-padding is nonzero and right-padding is 0
+    if(lv_obj_get_style_pad_top(ui_volumebar, LV_PART_MAIN) > 0) lv_obj_set_style_pad_right(ui_volumebar, lv_obj_get_style_pad_right(ui_volumebar, LV_PART_MAIN) + 1, LV_PART_MAIN);
 
     ui_Now_Playing = lv_tabview_add_tab(ui_TabView1, "");
     ui_Home = lv_tabview_add_tab(ui_TabView1, "");
@@ -385,4 +434,7 @@ void ui_main_screen_destroy(void)
     ui_Label9 = NULL;
     ui_Slider1 = NULL;
     ui_Keyboard = NULL;
+    ui_volumepanel = NULL;
+    ui_volumepercent = NULL;
+    ui_volumebar = NULL;
 }

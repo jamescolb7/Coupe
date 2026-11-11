@@ -11,6 +11,7 @@
 #define PLAYER_DIRTY_CONN     (1u << 1)
 #define PLAYER_DIRTY_PROGRESS (1u << 2)
 #define PLAYER_DIRTY_COVER    (1u << 3)
+#define PLAYER_DIRTY_VOLUME   (1u << 4)
 
 typedef struct {
 	char title[PLAYER_TEXT_MAX];
@@ -24,6 +25,8 @@ typedef struct {
 	uint32_t length_ms;
 	int64_t position_stamp_us;
 	bool playing;
+
+	uint8_t volume_pct;
 
 	/* ownership of cover_pixels passes to the snapshot taker (NULL if none) */
 	uint16_t *cover_pixels;
@@ -39,6 +42,7 @@ void player_set_album(const char *text, int len);
 void player_clear_metadata(void);
 void player_set_connected(bool connected, const char *device_name /* nullable: keep current */);
 void player_set_cover(uint16_t *pixels, uint16_t w, uint16_t h);
+void player_set_volume(uint8_t avrc_volume);
 
 //progress bar handling/player state
 void player_set_progress(uint32_t position_ms, uint32_t length_ms, bool playing);
