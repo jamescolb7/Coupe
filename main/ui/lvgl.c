@@ -25,6 +25,7 @@
 #include "ui/screens/main.h"
 #include "ui/animations.h"
 #include "ui/ui_sync.h"
+#include "ui/spectrum_view.h"
 
 #define LCD_HOST       SPI2_HOST
 #define LCD_PIXEL_CLOCK_HZ (60 * 1000 * 1000)
@@ -58,6 +59,60 @@
 
 /* persistent UI control block */
 avrc_cover_art_ui_cb_t s_ui_cb;
+
+#define FLUSH_WAIT_TIMEOUT_MS 100
+
+static SemaphoreHandle_t s_flush_sem;
+static volatile uint32_t s_flush_started;
+static volatile uint32_t s_flush_done;
+
+static bool IRAM_ATTR flush_done_isr(esp_lcd_panel_io_handle_t io, esp_lcd_panel_io_event_data_t *edata, void *user_ctx)
+{
+	(void)io;
+	(void)edata;
+	lv_display_flush_ready((lv_display_t *)user_ctx);
+	s_flush_done++;
+	BaseType_t woken = pdFALSE;
+	xSemaphoreGiveFromISR(s_flush_sem, &woken);
+	return woken == pdTRUE;
+}
+
+static void flush_start_cb(lv_event_t *e)
+{
+	(void)e;
+	s_flush_started++;
+}
+
+static void flush_wait_cb(lv_display_t *disp)
+{
+	(void)disp;
+	TickType_t start = xTaskGetTickCount();
+	while (s_flush_done != s_flush_started) {
+		xSemaphoreTake(s_flush_sem, pdMS_TO_TICKS(20) ? pdMS_TO_TICKS(20) : 1);
+		if ((xTaskGetTickCount() - start) > pdMS_TO_TICKS(FLUSH_WAIT_TIMEOUT_MS)) {
+			/* transfer-done never arrived: resync instead of hanging */
+			ESP_LOGW("LVGL", "flush done timeout, resyncing");
+			s_flush_done = s_flush_started;
+			break;
+		}
+	}
+}
+
+static void install_flush_wait(lv_display_t *disp)
+{
+	s_flush_sem = xSemaphoreCreateBinary();
+	if (!s_flush_sem) {
+		return; /* keep LVGL's default (spinning) wait */
+	}
+	/* replaces esp_lvgl_port's transfer-done callback; flush_done_isr does
+	 * the same lv_display_flush_ready() call plus the wakeup */
+	const esp_lcd_panel_io_callbacks_t cbs = {
+		.on_color_trans_done = flush_done_isr,
+	};
+	ESP_ERROR_CHECK(esp_lcd_panel_io_register_event_callbacks(s_ui_cb.io_handle, &cbs, disp));
+	lv_display_add_event_cb(disp, flush_start_cb, LV_EVENT_FLUSH_START, NULL);
+	lv_display_set_flush_wait_cb(disp, flush_wait_cb);
+}
 
 /* Set backlight brightness, 0 (off) - 100 (full). */
 void lvgl_set_backlight_brightness(uint8_t percent)
@@ -192,6 +247,11 @@ void lvgl_ui_init(void)
 
 	lv_display_set_rotation(s_ui_cb.disp_handle, LV_DISPLAY_ROTATION_90);
 
+	if (lvgl_port_lock(0)) {
+		install_flush_wait(s_ui_cb.disp_handle);
+		lvgl_port_unlock();
+	}
+
 	const lvgl_port_touch_cfg_t touch_cfg = {
 			.disp = s_ui_cb.disp_handle,
 			.handle = s_ui_cb.tp_handle,
@@ -204,6 +264,7 @@ void lvgl_ui_init(void)
 		ui_main_screen_init();
 		//handles new ui update clock
 		ui_sync_init();
+		ui_spectrum_view_init();
 		avrc_cover_art_decode_create_task();
 		
 		lvgl_port_unlock();

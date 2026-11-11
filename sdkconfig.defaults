@@ -21,3 +21,7 @@ CONFIG_LV_LOG_LEVEL_WARN=y
 CONFIG_LV_LOG_PRINTF=y
 #reboot if tasks stall
 CONFIG_ESP_TASK_WDT_PANIC=y
+# ~60 fps cap for the display refresh (only renders invalidated areas)
+CONFIG_LV_DEF_REFR_PERIOD=16
+# headroom for LVGL software rendering + rotation and the spectrum FFT
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y

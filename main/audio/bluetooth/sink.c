@@ -29,6 +29,7 @@
 #include "avrcp_cover_art_utils.h"
 
 #include "state/player.h"
+#include "audio/spectrum.h"
 
 /* device name */
 static const char local_device_name[] = "Coupé";
@@ -313,9 +314,24 @@ void bt_app_a2d_cb(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param)
         bt_app_work_dispatch(bt_a2d_evt_def_hdl, event, param, sizeof(esp_a2d_cb_param_t), NULL, NULL);
         break;
     }
+    case ESP_A2D_AUDIO_CFG_EVT:
+        /* same decoding as audio_sink_srv_codec_info_update() */
+        if (param->audio_cfg.mcc.type == ESP_A2D_MCT_SBC) {
+            uint8_t sf = param->audio_cfg.mcc.cie.sbc_info.samp_freq;
+            uint32_t rate = 16000;
+            if (sf & ESP_A2D_SBC_CIE_SF_32K) {
+                rate = 32000;
+            } else if (sf & ESP_A2D_SBC_CIE_SF_44K) {
+                rate = 44100;
+            } else if (sf & ESP_A2D_SBC_CIE_SF_48K) {
+                rate = 48000;
+            }
+            uint8_t ch = (param->audio_cfg.mcc.cie.sbc_info.ch_mode & ESP_A2D_SBC_CIE_CH_MODE_MONO) ? 1 : 2;
+            spectrum_set_format(rate, ch);
+        }
+        /* fall through */
     case ESP_A2D_CONNECTION_STATE_EVT:
     case ESP_A2D_AUDIO_STATE_EVT:
-    case ESP_A2D_AUDIO_CFG_EVT:
     case ESP_A2D_SEP_REG_STATE_EVT: {
         bt_app_work_dispatch(bt_a2d_evt_int_codec_hdl, event, param, sizeof(esp_a2d_cb_param_t), NULL, NULL);
         break;
@@ -328,6 +344,9 @@ void bt_app_a2d_cb(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param)
 
 void bt_app_a2d_data_cb(const uint8_t *data, uint32_t len)
 {
+    /* before volume scaling, so the analyzer doesn't shrink at low volume;
+     * a no-op unless the spectrum page is visible */
+    spectrum_feed(data, len);
     bt_app_a2d_scale_and_forward(data, len, bt_app_avrc_volume_to_gain(s_avrc_volume));
 }
 

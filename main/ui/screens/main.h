@@ -12,6 +12,8 @@ extern lv_obj_t * ui_Label1; /* play/pause button icon */
 extern lv_obj_t * ui_volumepanel;
 extern lv_obj_t * ui_volumepercent;
 extern lv_obj_t * ui_volumebar;
+extern lv_obj_t * ui_TabView1;
+extern lv_obj_t * ui_Now_Playing;
 
 extern void ui_main_screen_init(void);
 extern void ui_main_screen_destroy(void);

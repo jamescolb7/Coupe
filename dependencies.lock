@@ -67,6 +67,16 @@ dependencies:
       registry_url: https://components.espressif.com
       type: service
     version: 0.5.3
+  espressif/esp-dsp:
+    component_hash: ed9ac175b14e0414399a2b33c525579414b5bad19a2a67b12ea212def96f9a98
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=4.2'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.8.2
   espressif/esp_jpeg:
     component_hash: defb83669293cbf86d0fa86b475ba5517aceed04ed70db435388c151ab37b5d7
     dependencies:
@@ -120,12 +130,12 @@ dependencies:
       type: idf
     version: 6.0.3
   lvgl/lvgl:
-    component_hash: 17e68bfd21f0edf4c3ee838e2273da840bf3930e5dbc3bfa6c1190c3aed41f9f
+    component_hash: 184e532558c1c45fefed631f3e235423d22582aafb4630f3e8885c35281a49ae
     dependencies: []
     source:
       registry_url: https://components.espressif.com/
       type: service
-    version: 9.4.0
+    version: 9.5.0
 direct_dependencies:
 - a2dp_sink_common_utils
 - a2dp_sink_ext_codec_utils
@@ -135,12 +145,13 @@ direct_dependencies:
 - avrcp_metadata_utils
 - bredr_app_common_utils
 - bt_app_core_utils
+- espressif/esp-dsp
 - espressif/esp_jpeg
 - espressif/esp_lcd_ili9341
 - espressif/esp_lcd_touch
 - espressif/esp_lvgl_port
 - idf
 - lvgl/lvgl
-manifest_hash: bad41fbb7ee14da768f1d179a6e7965f02b8fb1bb9a3a345b75b11e888d02b50
+manifest_hash: b111a0ea2b464da75b6f198d4fe0d00943fc1bb5eb74f3bed16fd1f457c128b7
 target: esp32
 version: 3.0.0

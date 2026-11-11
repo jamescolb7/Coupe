@@ -18,3 +18,4 @@ dependencies:
   atanisoft/esp_lcd_touch_xpt2046: "~1.0.6"
   espressif/esp_lvgl_port: "^2.6.0"
   lvgl/lvgl: "9.*"
+  espressif/esp-dsp: "^1.5.0"
