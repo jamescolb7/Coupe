@@ -1,3 +1,0 @@
-"Reference","Qty","Value","DNP","Exclude from BOM","Exclude from Board","Footprint","Datasheet","LCSC Part #"
-"J1","1","USB_C_Receptacle_PowerOnly_6P","","","","PCBLIB_USB-C-SMD_TYPE-602-T3_2026-08-03:USB-C-SMD_TYPE-602-T3","https://www.usb.org/sites/default/files/documents/usb_type-c.zip","C2927028"
-"R1,R2","2","5.1K","","","","PCBLIB_R0805_2026-08-03:R0805","","C84375"

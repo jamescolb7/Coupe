@@ -1,6 +1,0 @@
-(fp_lib_table
-	(version 7)
-	(lib (name "coupe_footprints") (type "KiCad") (uri "${KIPRJMOD}/coupe_footprints.pretty") (options "") (descr ""))
-	(lib (name "PCBLIB_USB-C-SMD_TYPE-602-T3_2026-08-03") (type "EasyEDA / JLCEDA Std") (uri "${KIPRJMOD}/jlc_footprints/PCBLIB_USB-C-SMD_TYPE-602-T3_2026-08-03.json") (options "") (descr ""))
-	(lib (name "PCBLIB_R0805_2026-08-03") (type "EasyEDA / JLCEDA Std") (uri "${KIPRJMOD}/jlc_footprints/PCBLIB_R0805_2026-08-03.json") (options "") (descr ""))
-)
