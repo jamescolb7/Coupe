@@ -3,6 +3,7 @@
 #include "audio/bluetooth/sink.h"
 #include "state/settings.h"
 #include "ui/spectrum_view.h"
+#include "ui/lvgl.h"
 
 lv_obj_t *ui_Screen1 = NULL;
 lv_obj_t *ui_TabView1 = NULL;
@@ -32,6 +33,8 @@ lv_obj_t *ui_volumepercent = NULL;
 lv_obj_t *ui_volumebar = NULL;
 lv_obj_t *ui_spectrum_label = NULL;
 lv_obj_t *ui_spectrum_switch = NULL;
+lv_obj_t *ui_flip_label = NULL;
+lv_obj_t *ui_flip_switch = NULL;
 // event funtions
 void ui_event_TextArea1(lv_event_t *e)
 {
@@ -69,6 +72,14 @@ static void ui_event_spectrum_switch(lv_event_t *e)
 {
     lv_obj_t *sw = lv_event_get_target(e);
     ui_spectrum_set_enabled(lv_obj_has_state(sw, LV_STATE_CHECKED));
+}
+
+static void ui_event_flip_switch(lv_event_t *e)
+{
+    lv_obj_t *sw = lv_event_get_target(e);
+    bool flip = lv_obj_has_state(sw, LV_STATE_CHECKED);
+    settings_set_flip_vertical(flip);
+    lvgl_set_flip_vertical(flip);
 }
 
 void ui_event_brightness(lv_event_t *e)
@@ -403,6 +414,29 @@ void ui_main_screen_init(void)
         lv_obj_add_state(ui_spectrum_switch, LV_STATE_CHECKED);
     }
 
+    /* flip screen about the x-axis (upside down) */
+    ui_flip_label = lv_label_create(ui_Settings);
+    lv_obj_set_width(ui_flip_label, LV_SIZE_CONTENT);
+    lv_obj_set_height(ui_flip_label, LV_SIZE_CONTENT);
+    lv_obj_set_y(ui_flip_label, 88);
+    lv_label_set_text(ui_flip_label, "Flip screen");
+    lv_obj_set_style_text_color(ui_flip_label, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_flip_label, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_flip_label, &inter_12, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_flip_switch = lv_switch_create(ui_Settings);
+    lv_obj_set_size(ui_flip_switch, 40, 20);
+    lv_obj_set_pos(ui_flip_switch, 242 - 40, 85);
+    lv_obj_set_style_bg_color(ui_flip_switch, lv_color_hex(0x353535), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_flip_switch, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_flip_switch, lv_color_hex(0xD9D9D9), LV_PART_INDICATOR | LV_STATE_CHECKED);
+    lv_obj_set_style_bg_opa(ui_flip_switch, 255, LV_PART_INDICATOR | LV_STATE_CHECKED);
+    lv_obj_set_style_bg_color(ui_flip_switch, lv_color_hex(0xFFFFFF), LV_PART_KNOB | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_flip_switch, 255, LV_PART_KNOB | LV_STATE_DEFAULT);
+    if (settings_get_flip_vertical()) {
+        lv_obj_add_state(ui_flip_switch, LV_STATE_CHECKED);
+    }
+
     /* LVGL 9's tabview tab bar holds individual lv_button children (not a
      * button-matrix like LVGL 8), so the per-item bg/border styling has to be
      * applied to each tab button directly via LV_PART_MAIN -- LV_PART_ITEMS
@@ -434,6 +468,7 @@ void ui_main_screen_init(void)
     lv_obj_add_event_cb(ui_TextArea1, ui_event_TextArea1, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Slider1, ui_event_brightness, LV_EVENT_VALUE_CHANGED, NULL);
     lv_obj_add_event_cb(ui_spectrum_switch, ui_event_spectrum_switch, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_add_event_cb(ui_flip_switch, ui_event_flip_switch, LV_EVENT_VALUE_CHANGED, NULL);
     lv_obj_add_event_cb(ui_Back, ui_event_prev, LV_EVENT_CLICKED, NULL);
     lv_obj_add_event_cb(ui_Back1, ui_event_play_pause, LV_EVENT_CLICKED, NULL);
     lv_obj_add_event_cb(ui_Back2, ui_event_next, LV_EVENT_CLICKED, NULL);
@@ -474,4 +509,6 @@ void ui_main_screen_destroy(void)
     ui_volumebar = NULL;
     ui_spectrum_label = NULL;
     ui_spectrum_switch = NULL;
+    ui_flip_label = NULL;
+    ui_flip_switch = NULL;
 }

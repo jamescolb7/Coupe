@@ -2,6 +2,8 @@
 #define LVGL_UI_H
 
 #include <stdint.h>
+#include <stdbool.h>
+#include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "esp_lcd_panel_io.h"
@@ -32,5 +34,7 @@ extern avrc_cover_art_ui_cb_t s_ui_cb;
 void lvgl_ui_init(void);
 
 void lvgl_set_backlight_brightness(uint8_t percent);
+
+void lvgl_set_flip_vertical(bool flip);
 
 #endif

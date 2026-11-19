@@ -9,8 +9,10 @@ static const char *TAG = "SETTINGS";
 
 #define SETTINGS_NAMESPACE "coupe"
 #define KEY_SPECTRUM       "spectrum"
+#define KEY_FLIP_VERTICAL  "flip"
 
 static bool s_spectrum;
+static bool s_flip_vertical;
 
 static void save_u8(const char *key, uint8_t value)
 {
@@ -41,7 +43,24 @@ void settings_init(void)
 	if (nvs_get_u8(h, KEY_SPECTRUM, &v) == ESP_OK) {
 		s_spectrum = v != 0;
 	}
+	if (nvs_get_u8(h, KEY_FLIP_VERTICAL, &v) == ESP_OK) {
+		s_flip_vertical = v != 0;
+	}
 	nvs_close(h);
+}
+
+bool settings_get_flip_vertical(void)
+{
+	return s_flip_vertical;
+}
+
+void settings_set_flip_vertical(bool flip)
+{
+	if (s_flip_vertical == flip) {
+		return;
+	}
+	s_flip_vertical = flip;
+	save_u8(KEY_FLIP_VERTICAL, flip ? 1 : 0);
 }
 
 bool settings_get_spectrum(void)

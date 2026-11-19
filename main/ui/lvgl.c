@@ -26,9 +26,10 @@
 #include "ui/animations.h"
 #include "ui/ui_sync.h"
 #include "ui/spectrum_view.h"
+#include "state/settings.h"
 
-#define LCD_HOST       SPI2_HOST
-#define LCD_PIXEL_CLOCK_HZ (60 * 1000 * 1000)
+#define LCD_HOST       SPI3_HOST
+#define LCD_PIXEL_CLOCK_HZ (40 * 1000 * 1000)
 #define LCD_BK_LIGHT_ON_LEVEL  1
 #define PIN_NUM_DATA0          23
 #define PIN_NUM_PCLK           18
@@ -114,6 +115,29 @@ static void install_flush_wait(lv_display_t *disp)
 	lv_display_set_flush_wait_cb(disp, flush_wait_cb);
 }
 
+#define PANEL_BASE_MIRROR_X  true   /* normal orientation for this module */
+#define PANEL_BASE_MIRROR_Y  false
+#define TOUCH_BASE_MIRROR_X  false
+#define TOUCH_BASE_MIRROR_Y  true
+
+static void apply_orientation(bool flip)
+{
+	ESP_ERROR_CHECK(esp_lcd_panel_mirror(s_ui_cb.panel_handle,
+	                                     PANEL_BASE_MIRROR_X != flip,
+	                                     PANEL_BASE_MIRROR_Y != flip));
+	if (s_ui_cb.tp_handle) {
+		esp_lcd_touch_set_mirror_x(s_ui_cb.tp_handle, TOUCH_BASE_MIRROR_X != flip);
+		esp_lcd_touch_set_mirror_y(s_ui_cb.tp_handle, TOUCH_BASE_MIRROR_Y != flip);
+	}
+}
+
+void lvgl_set_flip_vertical(bool flip)
+{
+	apply_orientation(flip);
+	//redraw existing screen
+	lv_obj_invalidate(lv_screen_active());
+}
+
 /* Set backlight brightness, 0 (off) - 100 (full). */
 void lvgl_set_backlight_brightness(uint8_t percent)
 {
@@ -192,7 +216,8 @@ void lvgl_ui_init(void)
 
 	ESP_ERROR_CHECK(esp_lcd_panel_invert_color(s_ui_cb.panel_handle, false));
 
-	ESP_ERROR_CHECK(esp_lcd_panel_mirror(s_ui_cb.panel_handle, true, false));
+	/* orientation (incl. the saved vertical flip) is applied once touch is up */
+	ESP_ERROR_CHECK(esp_lcd_panel_mirror(s_ui_cb.panel_handle, PANEL_BASE_MIRROR_X, PANEL_BASE_MIRROR_Y));
 
 	/* Turn on the screen */
 	ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(s_ui_cb.panel_handle, true));
@@ -208,11 +233,14 @@ void lvgl_ui_init(void)
 			.int_gpio_num = PIN_NUM_TOUCH_IRQ,
 			.flags = {
 					.swap_xy = 0,
-					.mirror_x = 0,
-					.mirror_y = 1,
+					.mirror_x = TOUCH_BASE_MIRROR_X,
+					.mirror_y = TOUCH_BASE_MIRROR_Y,
 			},
 	};
 	ESP_ERROR_CHECK(esp_lcd_touch_new_spi_xpt2046(tp_io_handle, &tp_cfg, &s_ui_cb.tp_handle));
+
+	/* saved orientation, before LVGL draws anything */
+	apply_orientation(settings_get_flip_vertical());
 
 	/* Bring up esp_lvgl_port: dedicated LVGL task pinned to core 1 (the BT stack
 	 * is pinned to core 0 via CONFIG_BT_BLUEDROID_PINNED_TO_CORE_0) */
